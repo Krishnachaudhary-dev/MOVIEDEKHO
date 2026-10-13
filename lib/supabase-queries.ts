@@ -1,14 +1,18 @@
-import type { MovieStreamRecord, StreamSource, StreamsResponse } from '@/lib/types/sources';
+import type { MovieStreamRecord, StreamSource, StreamSourceType, StreamsResponse } from '@/lib/types/sources';
 import { getSupabaseClient } from './supabase';
 
-/**
- * Fetch stream sources for a TMDB title from Supabase.
- *
- * Returns a `StreamsResponse` so the caller (the streams API route) keeps the
- * same shape it had with the in-memory mock store, including the `fallback`
- * flag. When Supabase has no row for the tmdbId we still build a `MovieStreamRecord`
- * from the demo embed so the player never crashes before real links are added.
- */
+const ALLOWED_SOURCE_TYPES: StreamSourceType[] = ['embed', 'm3u8', 'mp4'];
+
+function parseSourceType(value: string): StreamSourceType {
+  if (ALLOWED_SOURCE_TYPES.includes(value as StreamSourceType)) {
+    return value as StreamSourceType;
+  }
+  throw new Error(
+    `stream_sources.type must be one of ${ALLOWED_SOURCE_TYPES.join(', ')}, got "${value}"`,
+  );
+}
+
+/** Fetch stream sources for a TMDB title from Supabase. */
 export async function getStreamsFromSupabase(
   tmdbId: number,
 ): Promise<StreamsResponse> {
@@ -20,8 +24,12 @@ export async function getStreamsFromSupabase(
     .eq('tmdb_id', tmdbId)
     .single();
 
-  if (movieError && movieError.code !== 'PGRST116') {
-    // PGRST116 = no rows; treat that as "not configured yet" and fall back.
+  if (movieError?.code === 'PGRST116') {
+    // No row for this TMDB id yet — return the demo fallback.
+    return buildDemoResponse(tmdbId, 'no stream record in Supabase yet');
+  }
+
+  if (movieError) {
     console.error('Supabase movie_streams lookup failed:', movieError);
     return buildDemoResponse(tmdbId, 'supabase lookup error');
   }
@@ -64,16 +72,11 @@ function mapSource(row: {
     id: row.id,
     name: row.server_name,
     url: row.url,
-    type: row.type as 'embed' | 'm3u8' | 'mp4',
+    type: parseSourceType(row.type),
     priority: row.priority,
   };
 }
 
-/**
- * Demo fallback when Supabase has no record for the title yet.
- * Kept deliberately small: one embed mirror so the player can render
- * and the server selector still has something to show during setup.
- */
 function buildDemoResponse(tmdbId: number, reason: string): StreamsResponse {
   const sources: StreamSource[] = [
     {
