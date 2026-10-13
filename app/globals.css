@@ -1,0 +1,107 @@
+@import "tailwindcss";
+
+/* ── MovieDekho theme ──────────────────────────────────────────────────────
+   A dark, Netflix/NetMirror-flavoured palette. Everything is expressed as
+   CSS custom properties so individual screens can override (e.g. the watch
+   page pins the background to pure black while the player buffers). */
+:root {
+  --background: #04060b;
+  --foreground: #f4f6fb;
+
+  /* Brand */
+  --brand: #e50914;
+  --brand-hover: #f6121d;
+  --brand-glow: rgb(229 9 20 / 0.35);
+
+  /* Surfaces — card and navbar sit on top of the background */
+  --surface: #0c111c;
+  --surface-raised: #141b2c;
+  --surface-hover: #1d2740;
+  --navbar: rgb(4 6 11 / 0.72);
+
+  /* Text */
+  --muted: #9aa6bd;
+  --faint: #6b7794;
+
+  /* Feedback */
+  --rating-high: #22c55e;
+  --rating-mid: #eab308;
+  --rating-low: #ef4444;
+}
+
+@media (prefers-color-scheme: light) {
+  /* MovieDekho is intentionally dark-first, so we only lift the neutrals a
+     touch on light systems rather than flipping the whole palette. */
+  :root {
+    --background: #f6f7fb;
+    --foreground: #0c111c;
+    --surface: #ffffff;
+    --surface-raised: #f0f2f8;
+    --surface-hover: #e5e8f2;
+    --navbar: rgb(255 255 255 / 0.78);
+    --muted: #5a6478;
+    --faint: #8690a6;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-hover: var(--surface-hover);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-rating-high: var(--rating-high);
+  --color-rating-mid: var(--rating-mid);
+  --color-rating-low: var(--rating-low);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  /* Prevents the translucent navbar from picking up a white flash. */
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  body {
+    color-scheme: light;
+  }
+}
+
+/* ── Utilities ─────────────────────────────────────────────────────────── */
+
+/* Horizontal movie rows scroll but hide the scrollbar, like Netflix. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* The top-edge fade that lets hero text bleed into the first row. */
+.fade-to-b {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgb(0 0 0 / 0.35) 55%,
+    var(--background) 100%
+  );
+}
+
+/* Horizontal scrim behind hero/title copy for legibility over backdrops. */
+.scrim-right {
+  background: linear-gradient(
+    to right,
+    var(--background) 0%,
+    rgb(4 6 11 / 0.85) 38%,
+    transparent 78%
+  );
+}

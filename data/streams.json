@@ -1,0 +1,80 @@
+[
+  {
+    "tmdb_id": 27205,
+    "media_type": "movie",
+    "title": "Inception",
+    "default_server": "server-1",
+    "sources": [
+      {
+        "id": "server-1",
+        "name": "Server 1 (Primary)",
+        "url": "https://vidsrc.to/embed/movie/27205",
+        "type": "embed",
+        "quality": "1080p",
+        "priority": 100
+      },
+      {
+        "id": "server-2",
+        "name": "Server 2 (Mirror)",
+        "url": "https://vidsrc.cc/v2/embed/movie/27205",
+        "type": "embed",
+        "quality": "720p",
+        "priority": 80
+      },
+      {
+        "id": "server-3",
+        "name": "Backup",
+        "url": "https://2embed.cc/embed/27205",
+        "type": "embed",
+        "priority": 60
+      }
+    ]
+  },
+  {
+    "tmdb_id": 155,
+    "media_type": "movie",
+    "title": "The Dark Knight",
+    "default_server": "server-1",
+    "sources": [
+      {
+        "id": "server-1",
+        "name": "Server 1 (Primary)",
+        "url": "https://vidsrc.to/embed/movie/155",
+        "type": "embed",
+        "quality": "1080p",
+        "priority": 100
+      },
+      {
+        "id": "server-2",
+        "name": "Server 2 (Mirror)",
+        "url": "https://vidsrc.cc/v2/embed/movie/155",
+        "type": "embed",
+        "quality": "720p",
+        "priority": 80
+      }
+    ]
+  },
+  {
+    "tmdb_id": 1396,
+    "media_type": "tv",
+    "title": "Breaking Bad",
+    "default_server": "server-1",
+    "sources": [
+      {
+        "id": "server-1",
+        "name": "Server 1 (Primary)",
+        "url": "https://vidsrc.to/embed/tv/1396/1/1",
+        "type": "embed",
+        "quality": "1080p",
+        "priority": 100
+      },
+      {
+        "id": "server-2",
+        "name": "Server 2 (Mirror)",
+        "url": "https://vidsrc.cc/v2/embed/tv/1396/1/1",
+        "type": "embed",
+        "priority": 80
+      }
+    ]
+  }
+]
