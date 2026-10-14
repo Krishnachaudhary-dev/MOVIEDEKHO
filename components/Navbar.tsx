@@ -171,26 +171,45 @@ export default function Navbar() {
                 aria-hidden
                 className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted"
               />
-              <input
-                ref={inputRef}
-                autoFocus
-                value={inputValue}
-                onChange={(event) => setInputValue(event.target.value)}
-                placeholder="Search movies, shows…"
-                aria-label="Search"
-                className="h-9 w-full rounded bg-surface-raised pl-8 pr-8 text-sm text-foreground outline-none ring-1 ring-transparent placeholder:text-faint focus:ring-white/40"
-              />
-              <button
-                type="button"
-                aria-label="Close search"
-                onClick={() => {
-                  setSearchOpen(false);
-                  setInputValue("");
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const q = inputValue.trim();
+                  if (q.length >= 1) {
+                    window.location.href = `/search?q=${encodeURIComponent(q)}`;
+                  }
                 }}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-muted hover:text-foreground"
+                className="relative"
               >
-                <X className="size-4" />
-              </button>
+                <input
+                  ref={inputRef}
+                  autoFocus
+                  value={inputValue}
+                  onChange={(event) => setInputValue(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      const q = inputValue.trim();
+                      if (q.length >= 1) {
+                        window.location.href = `/search?q=${encodeURIComponent(q)}`;
+                      }
+                    }
+                  }}
+                  placeholder="Search movies, shows…"
+                  aria-label="Search"
+                  className="h-9 w-full rounded bg-surface-raised pl-8 pr-8 text-sm text-foreground outline-none ring-1 ring-transparent placeholder:text-faint focus:ring-white/40"
+                />
+                <button
+                  type="button"
+                  aria-label="Close search"
+                  onClick={() => {
+                    setSearchOpen(false);
+                    setInputValue("");
+                  }}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-muted hover:text-foreground"
+                >
+                  <X className="size-4" />
+                </button>
+              </form>
 
               {/* Results dropdown */}
               {inputValue.trim().length >= 2 && (
