@@ -414,27 +414,6 @@ export default function VideoPlayer({
           src={activeSrc}
           className="h-full w-full border-0"
           title={title}
-          /*
-           * Sandboxed deliberately: these third-party hosts monetise with
-           * pop-unders and top-level redirects, so the player boots the embed
-           * with the least privilege that still plays video.
-           *
-           * `allow-scripts` runs the provider's player, `allow-same-origin`
-           * keeps its cookies/storage working (most embeds break without it),
-           * `allow-presentation` keeps cast/second-screen alive. `allow-popups`,
-           * `allow-popups-to-escape-sandbox` and both `allow-top-navigation`
-           * tokens are intentionally absent — an ad script can then neither
-           * open a window nor navigate this page away, the browser blocks it
-           * instead of the viewer fighting a hijacked tab.
-           */
-          sandbox="allow-scripts allow-same-origin allow-presentation"
-          /*
-           * `fullscreen` lives in the `allow` list rather than the legacy
-           * `allowFullScreen` attribute: the two together make Chrome log
-           * "Allow attribute will take precedence over 'allowfullscreen'", and
-           * the spec here is a warning-free console.
-           */
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture"
           loading="eager"
           onLoad={onIframeLoad}
           onError={onIframeError}
