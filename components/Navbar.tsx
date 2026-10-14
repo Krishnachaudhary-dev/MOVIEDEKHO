@@ -28,11 +28,18 @@ import type {
   TmdbTvResult,
 } from "@/lib/types/tmdb";
 
+/**
+ * The one nav destination with no route behind it yet: the watchlist needs a
+ * persistence design first. It is kept as a non-navigating placeholder so the
+ * header never links to — or prefetches — a 404.
+ */
+const PENDING_HREF = "/my-list";
+
 const NAV_LINKS = [
   { href: "/", label: "Home", icon: Home },
   { href: "/movies", label: "Movies", icon: Film },
   { href: "/tv", label: "TV Shows", icon: Tv },
-  { href: "/my-list", label: "My List", icon: Bookmark },
+  { href: PENDING_HREF, label: "My List", icon: Bookmark },
 ] as const;
 
 const DEBOUNCE_MS = 300;
@@ -150,16 +157,26 @@ export default function Navbar() {
                 : pathname.startsWith(link.href);
             return (
               <li key={link.href}>
-                <Link
-                  href={link.href}
-                  className={
-                    active
-                      ? "font-semibold text-foreground"
-                      : "font-medium text-muted transition-colors hover:text-foreground"
-                  }
-                >
-                  {link.label}
-                </Link>
+                {link.href === PENDING_HREF ? (
+                  <span
+                    aria-disabled="true"
+                    title="Watchlist coming soon"
+                    className="cursor-default font-medium text-faint"
+                  >
+                    {link.label}
+                  </span>
+                ) : (
+                  <Link
+                    href={link.href}
+                    className={
+                      active
+                        ? "font-semibold text-foreground"
+                        : "font-medium text-muted transition-colors hover:text-foreground"
+                    }
+                  >
+                    {link.label}
+                  </Link>
+                )}
               </li>
             );
           })}
@@ -290,16 +307,22 @@ export default function Navbar() {
       <ul className="no-scrollbar flex items-center gap-4 overflow-x-auto px-4 pb-2 text-xs md:hidden">
         {NAV_LINKS.map((link) => (
           <li key={link.href}>
-            <Link
-              href={link.href}
-              className={
-                (link.href === "/" ? pathname === "/" : pathname.startsWith(link.href))
-                  ? "font-semibold text-foreground"
-                  : "text-muted"
-              }
-            >
-              {link.label}
-            </Link>
+            {link.href === PENDING_HREF ? (
+              <span aria-disabled="true" title="Watchlist coming soon" className="cursor-default text-faint">
+                {link.label}
+              </span>
+            ) : (
+              <Link
+                href={link.href}
+                className={
+                  (link.href === "/" ? pathname === "/" : pathname.startsWith(link.href))
+                    ? "font-semibold text-foreground"
+                    : "text-muted"
+                }
+              >
+                {link.label}
+              </Link>
+            )}
           </li>
         ))}
       </ul>

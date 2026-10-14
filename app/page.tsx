@@ -2,6 +2,8 @@ import { Suspense } from "react";
 
 import HeroBanner from "@/components/HeroBanner";
 import MovieRow from "@/components/MovieRow";
+import RowError from "@/components/RowError";
+import RowFallback from "@/components/RowFallback";
 import {
   discoverMovies,
   getPopularMovies,
@@ -16,26 +18,12 @@ import type { TmdbMovieResult, TmdbTvResult } from "@/lib/types/tmdb";
  * Static shell + streamed rows: everything below the hero lives behind
  * `<Suspense>` so the page paints instantly and rows fill from TMDB via the
  * `use cache` layer. Loaders return outcome objects (no throwing at render).
+ *
+ * The row skeleton and error card come from `components/` — `/movies` and
+ * `/tv` render the same two states.
  */
 
 type TitleItem = TmdbMovieResult | TmdbTvResult;
-
-/** Row skeleton shown while a section streams in — shimmer band, not pulse. */
-function RowFallback() {
-  return (
-    <section className="mt-8" aria-busy>
-      <div className="bg-skeleton mb-3 h-6 w-40 rounded" />
-      <ul className="no-scrollbar flex gap-3 overflow-hidden px-4 py-1 sm:px-6">
-        {Array.from({ length: 8 }, (_, i) => (
-          <li
-            key={i}
-            className="bg-skeleton aspect-[2/3] w-36 shrink-0 rounded-lg sm:w-44"
-          />
-        ))}
-      </ul>
-    </section>
-  );
-}
 
 async function TrendingSection() {
   const outcome = await getTrendingTitles("day");
@@ -108,25 +96,6 @@ async function ActionDramaSection() {
   }
 
   return <MovieRow title="Action & Drama" items={merged} />;
-}
-
-function RowError({
-  context,
-  error,
-}: {
-  context: string;
-  error: { message: string; configError: boolean };
-}) {
-  return (
-    <section className="mx-4 mt-8 rounded-lg border border-rating-low/40 bg-surface px-4 py-3 text-sm sm:mx-6">
-      <p className="font-semibold">Couldn&apos;t load {context}</p>
-      <p className="mt-1 break-words text-muted">
-        {error.configError
-          ? "Add your TMDB key to .env.local, then restart the dev server."
-          : error.message}
-      </p>
-    </section>
-  );
 }
 
 export default function Page() {
