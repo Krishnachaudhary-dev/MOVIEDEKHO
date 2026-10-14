@@ -58,7 +58,6 @@ export default function HeroBanner({ item, details }: HeroBannerProps) {
             fill
             priority
             fetchPriority="high"
-            quality={85}
             sizes="100vw"
             className="animate-hero-backdrop object-cover object-top"
           />

@@ -49,7 +49,24 @@ function normalizeTitle(
   return record.title;
 }
 
-export default async function WatchPage({
+export default function WatchPage({
+  params,
+  searchParams,
+}: {
+  params: RouteParams;
+  searchParams: RouteSearchParams;
+}) {
+  // Cache Components: the instant shell must not block on URL data, so params
+  // resolution and both media branches stream in behind Suspense with the
+  // shared route skeleton as the fallback.
+  return (
+    <Suspense fallback={<WatchSkeleton />}>
+      <WatchBody params={params} searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function WatchBody({
   params,
   searchParams,
 }: {
@@ -66,8 +83,8 @@ export default async function WatchPage({
   const mediaType = type === "movie" ? ("movie" as const) : ("tv" as const);
 
   if (mediaType === "tv") {
-    // The search params stay a promise: only the TV branch reads them, so the
-    // movie path never waits on request-time data it does not use.
+    // The TV branch additionally awaits search params (?season= / ?episode=);
+    // nested Suspense keeps movie renders free of that wait.
     return (
       <Suspense fallback={<WatchSkeleton />}>
         <TvWatch tmdbId={tmdbId} searchParams={searchParams} />
