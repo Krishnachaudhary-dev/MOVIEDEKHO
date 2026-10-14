@@ -4,7 +4,9 @@
 --   Supabase dashboard → SQL Editor → paste this file → Run.
 --
 -- The admin tool (/admin) writes to these two tables; the player reads them
--- through /api/streams/[tmdbId]. Safe to re-run: everything is idempotent.
+-- through /api/streams/[tmdbId] and through the watch page. Safe to re-run:
+-- everything below is idempotent, including the column additions further down
+-- that back per-episode TV sources.
 
 create extension if not exists "pgcrypto";
 
@@ -33,6 +35,34 @@ create table if not exists public.stream_sources (
 -- The player orders sources by priority for a given movie.
 create index if not exists stream_sources_movie_id_priority_idx
   on public.stream_sources (movie_id, priority desc);
+
+-- ── Episode-scoped mirrors (TV) ─────────────────────────────────────────────
+-- Added after the first release, so these are `add column if not exists` rather
+-- than part of the create above — an existing project picks them up by
+-- re-running this file.
+--
+-- Both columns null  → the mirror serves the title as a whole: every movie, and
+--                      any episode of a series (many embeds carry their own
+--                      episode picker). This is what every pre-existing row is,
+--                      which is why the addition is backward compatible.
+-- Both columns set   → the mirror serves exactly that episode, and takes
+--                      precedence over the title-level mirror for it.
+alter table public.stream_sources
+  add column if not exists season_number integer;
+alter table public.stream_sources
+  add column if not exists episode_number integer;
+
+-- Enforce the pairing in the database, not just in the admin form. Dropped
+-- first because `add constraint` has no `if not exists`.
+alter table public.stream_sources
+  drop constraint if exists stream_sources_episode_pair_check;
+alter table public.stream_sources
+  add constraint stream_sources_episode_pair_check
+  check ((season_number is null) = (episode_number is null));
+
+-- The watch page asks for "this movie's row for this exact episode".
+create index if not exists stream_sources_episode_idx
+  on public.stream_sources (movie_id, season_number, episode_number);
 
 -- ── Row-level security ──────────────────────────────────────────────────────
 -- Reads are public (the player runs with the anon key). There is deliberately

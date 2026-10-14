@@ -34,6 +34,7 @@ import {
   getTopRatedMovies as getTopRatedMoviesRaw,
   getTopRatedTv as getTopRatedTvRaw,
   getTvDetails as getTvDetailsRaw,
+  getTvSeason as getTvSeasonRaw,
   getTrendingTitles as getTrendingTitlesRaw,
   getUpcomingMovies as getUpcomingMoviesRaw,
   searchMulti as searchMultiRaw,
@@ -52,6 +53,7 @@ import type {
   TmdbMovieDetails,
   TmdbMovieResult,
   TmdbSearchOptions,
+  TmdbSeasonDetails,
   TmdbTimeWindow,
   TmdbTvDetails,
   TmdbTvResult,
@@ -199,6 +201,23 @@ export async function getDetailsByType(
   id: number,
 ): Promise<TmdbOutcome<TmdbDetails>> {
   return mediaType === "movie" ? getMovieDetails(id) : getTvDetails(id);
+}
+
+/* ------------------------------------------------------------------ *
+ * Seasons & episodes (TV watch page)
+ * ------------------------------------------------------------------ */
+
+/**
+ * One season with its episodes. Cache life is `hours`: episode lists only
+ * change when the show airs, and the watch page re-renders per episode link.
+ */
+export async function getTvSeason(
+  tvId: number,
+  seasonNumber: number,
+): Promise<TmdbOutcome<TmdbSeasonDetails>> {
+  "use cache";
+  cacheLife("hours");
+  return attempt(() => getTvSeasonRaw(tvId, seasonNumber));
 }
 
 /* ------------------------------------------------------------------ *

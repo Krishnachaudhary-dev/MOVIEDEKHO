@@ -129,6 +129,43 @@ export default function AdminForm() {
                     />
                   </label>
                 </div>
+
+                <div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <label className="col-span-1">
+                      <span className="block text-sm font-medium text-foreground">
+                        Season{' '}
+                        <span className="text-faint">(TV, optional)</span>
+                      </span>
+                      <input
+                        name="seasonNumber"
+                        type="number"
+                        min="0"
+                        className="mt-1 w-full rounded-lg border border-surface-hover bg-black px-3 py-2 text-white placeholder:text-faint focus:border-brand focus:outline-none"
+                        placeholder="1"
+                      />
+                    </label>
+                    <label className="col-span-1">
+                      <span className="block text-sm font-medium text-foreground">
+                        Episode{' '}
+                        <span className="text-faint">(TV, optional)</span>
+                      </span>
+                      <input
+                        name="episodeNumber"
+                        type="number"
+                        min="1"
+                        className="mt-1 w-full rounded-lg border border-surface-hover bg-black px-3 py-2 text-white placeholder:text-faint focus:border-brand focus:outline-none"
+                        placeholder="3"
+                      />
+                    </label>
+                  </div>
+                  <p className="mt-1.5 text-xs text-faint">
+                    Leave both blank for a server that covers the whole title —
+                    movies, and series whose embed picks its own episode. Fill
+                    both to register a mirror for one exact episode; it then
+                    overrides the title-level server for that episode only.
+                  </p>
+                </div>
               </div>
             </div>
 

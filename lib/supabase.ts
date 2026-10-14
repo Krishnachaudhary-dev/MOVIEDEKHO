@@ -117,6 +117,8 @@ const SUPABASE_ERROR_HINTS: Record<string, string> = {
     'the table does not exist — apply supabase/schema.sql to this Supabase project.',
   PGRST205:
     'the table is missing from the schema cache — apply supabase/schema.sql to this Supabase project.',
+  '42703':
+    'the column does not exist — re-run supabase/schema.sql for this project to add the per-episode columns.',
   '42501':
     'row-level security rejected the write — set SUPABASE_SERVICE_ROLE_KEY (private, server-only) instead of using the anon key.',
   '23505': 'a row with that unique key already exists.',

@@ -23,6 +23,7 @@ import type {
   TmdbPosterSize,
   TmdbProfileSize,
   TmdbSearchOptions,
+  TmdbSeasonDetails,
   TmdbStillSize,
   TmdbTimeWindow,
   TmdbTvDetails,
@@ -433,6 +434,23 @@ export async function getTvCredits(
   options: { language?: string } = {},
 ): Promise<TmdbCredits> {
   return tmdbFetch(`/tv/${tvId}/credits`, {
+    query: { language: options.language },
+  });
+}
+
+/**
+ * One season and its episodes — the data behind the watch page's episode list.
+ *
+ * There is no list endpoint for episodes across every season: TMDB is queried
+ * one season at a time, which is why the watch page resolves the active season
+ * before it can offer episodes.
+ */
+export async function getTvSeason(
+  tvId: number,
+  seasonNumber: number,
+  options: { language?: string } = {},
+): Promise<TmdbSeasonDetails> {
+  return tmdbFetch(`/tv/${tvId}/season/${seasonNumber}`, {
     query: { language: options.language },
   });
 }

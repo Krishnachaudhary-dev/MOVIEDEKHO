@@ -28,6 +28,31 @@ function parsePositiveInteger(value: FormDataEntryValue | null | undefined, fiel
   return n;
 }
 
+/**
+ * An optional season/episode field. `undefined` means "left blank" — a
+ * series-wide server — while a blank string is treated the same way so an
+ * untouched input never reads as an error.
+ */
+function parseOptionalIndex(
+  value: FormDataEntryValue | null | undefined,
+  fieldName: string,
+  min: number,
+): number | undefined {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value === 'object') {
+    throw new Error(`${fieldName} must be a number, not a file.`);
+  }
+  const raw = String(value).trim();
+  if (raw === '') return undefined;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < min) {
+    throw new Error(
+      `${fieldName} must be a whole number of ${min} or more — or left blank for a series-wide server.`,
+    );
+  }
+  return n;
+}
+
 export async function addMovieStream(
   _previousState: AddMovieStreamResult,
   formData: FormData,
@@ -49,6 +74,26 @@ export async function addMovieStream(
     const url = String(formData.get('url') ?? '').trim();
     const typeRaw = String(formData.get('type') ?? '');
     const priority = parsePositiveInteger(formData.get('priority'), 'Priority');
+    const seasonNumber = parseOptionalIndex(
+      formData.get('seasonNumber'),
+      'Season',
+      0,
+    );
+    const episodeNumber = parseOptionalIndex(
+      formData.get('episodeNumber'),
+      'Episode',
+      1,
+    );
+
+    // Half a selection is meaningless (and the schema's check constraint would
+    // reject it), so say so plainly instead of letting Postgres explain it.
+    if ((seasonNumber === undefined) !== (episodeNumber === undefined)) {
+      return {
+        ok: false,
+        error:
+          'Season and episode must be filled in together, or both left blank for a server that covers the whole series.',
+      };
+    }
 
     if (!title) {
       return { ok: false, error: 'Movie title is required.' };
@@ -116,6 +161,13 @@ export async function addMovieStream(
       url,
       type: typeRaw as 'embed' | 'm3u8' | 'mp4',
       priority,
+      // Sent only when an episode was given, so a project that has not re-run
+      // schema.sql yet keeps saving title-level sources; an episode-scoped save
+      // reports the missing columns (code 42703) instead of silently dropping
+      // the episode.
+      ...(seasonNumber !== undefined && episodeNumber !== undefined
+        ? { season_number: seasonNumber, episode_number: episodeNumber }
+        : {}),
     });
 
     if (sourcesError) {

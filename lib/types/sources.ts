@@ -46,4 +46,10 @@ export interface StreamsResponse {
   record: MovieStreamRecord;
   /** True when `record` is the demo fallback rather than real mirrors. */
   fallback: boolean;
+  /**
+   * For TV: which mirrors produced `record.sources` — `episode` when a source
+   * is registered for the requested episode, `title` when it fell back to the
+   * title-level mirror. `title` for movies and for the demo fallback.
+   */
+  sourceScope?: "episode" | "title";
 }

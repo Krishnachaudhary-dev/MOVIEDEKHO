@@ -163,6 +163,40 @@ export interface TmdbSeason {
   vote_average: number;
 }
 
+/**
+ * One episode, from `/tv/{id}/season/{n}`.
+ *
+ * Note `still_path` (a 16:9 frame of the episode) rather than `poster_path`
+ * (the 2:3 artwork a season or show carries).
+ */
+export interface TmdbEpisode {
+  id: number;
+  name: string;
+  overview: string;
+  episode_number: number;
+  season_number: number;
+  still_path: string | null;
+  /** `"YYYY-MM-DD"`, may be `""` or null for an unaired episode. */
+  air_date: string | null;
+  runtime: number | null;
+  vote_average: number;
+  vote_count: number;
+  production_code: string;
+  /** `"standard"`, `"finale"`, `"mid_season"` … when TMDB reports one. */
+  episode_type?: string;
+}
+
+/** `/tv/{id}/season/{n}` — the season plus its episode list. */
+export interface TmdbSeasonDetails {
+  id: number;
+  name: string;
+  overview: string;
+  poster_path: string | null;
+  air_date: string | null;
+  season_number: number;
+  episodes: TmdbEpisode[];
+}
+
 export interface TmdbCreator {
   id: number;
   credit_id: string;
@@ -379,5 +413,5 @@ export type TmdbPosterSize =
   | "w780"
   | "original";
 export type TmdbProfileSize = "w45" | "w185" | "h632" | "original";
-export type TmdbStillSize = "w92" | "w185" | "original";
+export type TmdbStillSize = "w92" | "w185" | "w300" | "original";
 export type TmdbLogoSize = "w45" | "w92" | "w154" | "w300" | "original";

@@ -7,6 +7,7 @@ import type {
   StreamsResponse,
 } from '@/lib/types/sources';
 import { getStreamsFromSupabase } from './supabase-queries';
+import type { StreamSelection } from './supabase-queries';
 import { hasSupabaseConfig } from './supabase';
 
 /** Typed view of the JSON seed (JSON modules widen literals to string). */
@@ -144,14 +145,17 @@ function buildFallback(tmdbId: number): MovieStreamRecord {
 export async function getMovieSources(
   tmdbId: number,
   mediaType: 'movie' | 'tv' = 'movie',
+  selection?: StreamSelection,
 ): Promise<StreamsResponse> {
   if (hasSupabaseConfig()) {
-    return getStreamsFromSupabase(tmdbId);
+    return getStreamsFromSupabase(tmdbId, selection, mediaType);
   }
 
   const key = streamKey(tmdbId, mediaType);
   const record = byKey.get(key) ?? buildFallback(tmdbId);
-  return { record, fallback: !byKey.has(key) };
+  // The bundled seed knows nothing about episodes: whatever it holds for a
+  // series plays title-level, and saying so lets the watch page label it.
+  return { record, fallback: !byKey.has(key), sourceScope: 'title' };
 }
 
 /** All curated records — used by admin/debug surfaces later. */
