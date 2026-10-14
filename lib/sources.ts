@@ -71,74 +71,115 @@ function streamKey(tmdbId: number, mediaType: 'movie' | 'tv'): string {
 }
 
 /**
- * Build the fallback record when a title has no mirrors anywhere.
+ * The standard TMDB-keyed embed providers, each with the URL shape it actually
+ * documents.
  *
- * These are the standard TMDB-keyed embed providers with URL patterns
- * documented in public open-source repos (VidSrc.to/.xyz/.cc `/v2`,
- * `player.autoembed.cc`, `embed.su`, `multiembed.mov`): `embed/movie/{id}`
- * and `embed/tv/{id}/{season}/{episode}`. A dead provider lands in the
- * player's error UI and the switcher bar picks the next server — mirrored
- * servers from Supabase always outrank this fallback because they are what
- * the admin actually configured.
+ * One provider per entry, both media types spelled out: a shared `embed/${path}`
+ * template is what previously let a provider's movie shape silently stand in
+ * for its series shape. Films address `movie/{tmdbId}`; series address
+ * `tv/{tmdbId}/{season}/{episode}`. When a provider changes its path (they do),
+ * the fix is one line at the provider it belongs to, and the tests in
+ * `lib/sources` pin every URL above so a typo cannot ship.
  */
+interface FallbackProvider {
+  id: string;
+  name: string;
+  /** Embed URL for a film. */
+  movie: (tmdbId: number) => string;
+  /** Embed URL for one episode of a series. */
+  tv: (tmdbId: number, season: number, episode: number) => string;
+  priority: number;
+}
+
+const FALLBACK_PROVIDERS: readonly FallbackProvider[] = [
+  {
+    id: 'vidsrc-to',
+    name: 'VidSrc',
+    movie: (id) => `https://vidsrc.to/embed/movie/${id}`,
+    tv: (id, season, episode) =>
+      `https://vidsrc.to/embed/tv/${id}/${season}/${episode}`,
+    priority: 100,
+  },
+  {
+    id: 'autoembed',
+    name: 'AutoEmbed',
+    movie: (id) => `https://player.autoembed.cc/embed/movie/${id}`,
+    tv: (id, season, episode) =>
+      `https://player.autoembed.cc/embed/tv/${id}/${season}/${episode}`,
+    priority: 90,
+  },
+  {
+    id: 'embed-su',
+    name: 'Embed.su',
+    movie: (id) => `https://embed.su/embed/movie/${id}`,
+    tv: (id, season, episode) =>
+      `https://embed.su/embed/tv/${id}/${season}/${episode}`,
+    priority: 80,
+  },
+  {
+    id: 'superembed',
+    name: 'SuperEmbed',
+    movie: (id) => `https://multiembed.mov/?video_id=${id}&tmdb=1`,
+    tv: (id, season, episode) =>
+      `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${season}&e=${episode}`,
+    priority: 70,
+  },
+  {
+    id: 'vidsrc-xyz',
+    name: 'VidSrc XYZ',
+    movie: (id) => `https://vidsrc.xyz/embed/movie/${id}`,
+    tv: (id, season, episode) =>
+      `https://vidsrc.xyz/embed/tv/${id}/${season}/${episode}`,
+    priority: 60,
+  },
+  {
+    id: 'vidsrc-cc',
+    name: 'VidSrc CC',
+    movie: (id) => `https://vidsrc.cc/v2/embed/movie/${id}`,
+    tv: (id, season, episode) =>
+      `https://vidsrc.cc/v2/embed/tv/${id}/${season}/${episode}`,
+    priority: 50,
+  },
+];
+
+/**
+ * The fallback mirrors for a title, highest priority first.
+ *
+ * A dead provider lands in the player's error UI and the switcher bar offers
+ * the next server; mirrors configured in Supabase always outrank these because
+ * they are what the admin actually chose.
+ */
+export function getFallbackSources(
+  tmdbId: number,
+  mediaType: 'movie' | 'tv',
+  selection?: StreamSelection,
+): StreamSource[] {
+  // TV embeds key by season/episode; with no selection the first episode of
+  // season 1 is the conventional default.
+  const season = selection?.season ?? 1;
+  const episode = selection?.episode ?? 1;
+
+  return FALLBACK_PROVIDERS.map(
+    (provider): StreamSource => ({
+      id: provider.id,
+      name: provider.name,
+      url:
+        mediaType === 'movie'
+          ? provider.movie(tmdbId)
+          : provider.tv(tmdbId, season, episode),
+      type: 'embed',
+      priority: provider.priority,
+    }),
+  );
+}
+
+/** Wrap the provider table in a complete record (used by the no-Supabase path). */
 function buildFallback(
   tmdbId: number,
   mediaType: 'movie' | 'tv',
   selection?: StreamSelection,
 ): MovieStreamRecord {
-  // TV embeds key by season/episode; with no selection the first episode of
-  // season 1 is the conventional default (same shape the old hardcoded
-  // Breaking Bad entry used).
-  const season = selection?.season ?? 1;
-  const episode = selection?.episode ?? 1;
-  const path =
-    mediaType === 'movie' ? `movie/${tmdbId}` : `tv/${tmdbId}/${season}/${episode}`;
-  const episodeQuery = mediaType === 'movie' ? '' : `&s=${season}&e=${episode}`;
-
-  const sources: StreamSource[] = [
-    {
-      id: 'vidsrc-to',
-      name: 'VidSrc',
-      url: `https://vidsrc.to/embed/${path}`,
-      type: 'embed',
-      priority: 100,
-    },
-    {
-      id: 'autoembed',
-      name: 'AutoEmbed',
-      url: `https://player.autoembed.cc/embed/${path}`,
-      type: 'embed',
-      priority: 90,
-    },
-    {
-      id: 'embed-su',
-      name: 'Embed.su',
-      url: `https://embed.su/embed/${path}`,
-      type: 'embed',
-      priority: 80,
-    },
-    {
-      id: 'superembed',
-      name: 'SuperEmbed',
-      url: `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1${episodeQuery}`,
-      type: 'embed',
-      priority: 70,
-    },
-    {
-      id: 'vidsrc-xyz',
-      name: 'VidSrc XYZ',
-      url: `https://vidsrc.xyz/embed/${path}`,
-      type: 'embed',
-      priority: 60,
-    },
-    {
-      id: 'vidsrc-cc',
-      name: 'VidSrc CC',
-      url: `https://vidsrc.cc/v2/embed/${path}`,
-      type: 'embed',
-      priority: 50,
-    },
-  ];
+  const sources = getFallbackSources(tmdbId, mediaType, selection);
 
   return {
     tmdb_id: tmdbId,
