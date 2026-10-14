@@ -13,7 +13,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { getMediaType, getYear } from "@/lib/tmdb";
+import { getMediaType, getWatchPath, getYear } from "@/lib/tmdb";
 import type { TmdbDetails } from "@/lib/types/tmdb";
 import type { TmdbMovieResult, TmdbTvResult } from "@/lib/types/tmdb";
 
@@ -159,7 +159,7 @@ export default function DetailsModal({
 
           <div className="mt-6 flex gap-3">
             <Link
-              href={`/watch/${kind}/${item.id}`}
+              href={getWatchPath(item)}
               className="inline-flex flex-1 items-center justify-center gap-2 rounded bg-brand px-4 py-2.5 font-bold text-white transition hover:bg-brand-hover"
             >
               <Play className="size-5 fill-current" />

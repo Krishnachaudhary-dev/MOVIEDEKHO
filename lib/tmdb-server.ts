@@ -174,7 +174,7 @@ export async function getOnTheAirTv(
 }
 
 /* ------------------------------------------------------------------ *
- * Title pages (/title/movie/[id] · /title/tv/[id] · /watch/[type]/[id])
+ * Title pages (/watch/[type]/[id] — the only title route in the app)
  * ------------------------------------------------------------------ */
 
 export async function getMovieDetails(

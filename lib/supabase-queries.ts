@@ -3,13 +3,19 @@ import { getSupabaseClient } from './supabase';
 
 const ALLOWED_SOURCE_TYPES: StreamSourceType[] = ['embed', 'm3u8', 'mp4'];
 
-function parseSourceType(value: string): StreamSourceType {
-  if (ALLOWED_SOURCE_TYPES.includes(value as StreamSourceType)) {
-    return value as StreamSourceType;
+/**
+ * Normalise a `stream_sources.type` value.
+ *
+ * Returns `null` for anything unusable instead of throwing: one hand-edited row
+ * used to take down the whole watch page and `/api/streams` with a 500, when
+ * the right answer is to skip that mirror and serve the rest.
+ */
+function parseSourceType(value: string): StreamSourceType | null {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  if ((ALLOWED_SOURCE_TYPES as readonly string[]).includes(normalized)) {
+    return normalized as StreamSourceType;
   }
-  throw new Error(
-    `stream_sources.type must be one of ${ALLOWED_SOURCE_TYPES.join(', ')}, got "${value}"`,
-  );
+  return null;
 }
 
 /** Fetch stream sources for a TMDB title from Supabase. */
@@ -50,12 +56,16 @@ export async function getStreamsFromSupabase(
     return buildDemoResponse(tmdbId, 'supabase sources lookup error');
   }
 
+  const mapped = (sources ?? [])
+    .map(mapSource)
+    .filter((source): source is StreamSource => source !== null);
+
   const record: MovieStreamRecord = {
     tmdb_id: tmdbId,
     media_type: 'movie',
     title: movie.title ?? `TMDB #${tmdbId}`,
-    default_server: sources?.[0]?.id ?? '',
-    sources: (sources ?? []).map(mapSource),
+    default_server: mapped[0]?.id ?? '',
+    sources: mapped,
   };
 
   return { record, fallback: false };
@@ -67,12 +77,20 @@ function mapSource(row: {
   url: string;
   type: string;
   priority: number;
-}): StreamSource {
+}): StreamSource | null {
+  const type = parseSourceType(row.type);
+  if (!type) {
+    console.warn(
+      `stream_sources row ${row.id} skipped: type must be one of ${ALLOWED_SOURCE_TYPES.join(', ')}, got "${row.type}"`,
+    );
+    return null;
+  }
+
   return {
     id: row.id,
     name: row.server_name,
     url: row.url,
-    type: parseSourceType(row.type),
+    type,
     priority: row.priority,
   };
 }

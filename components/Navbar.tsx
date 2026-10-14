@@ -21,7 +21,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { getTitle, getMediaType, getYear, getPosterUrl } from "@/lib/tmdb";
+import { getTitle, getMediaType, getYear, getPosterUrl, getWatchPath } from "@/lib/tmdb";
 import type {
   TmdbListItem,
   TmdbMovieResult,
@@ -234,7 +234,10 @@ export default function Navbar() {
                         return (
                           <li key={`${kind}-${item.id}`}>
                             <Link
-                              href={`/title/${kind}/${item.id}`}
+                              // `/title/[type]/[id]` was never built — every
+                              // search result 404'd. The player route is the
+                              // only title route in this app.
+                              href={getWatchPath(item)}
                               onClick={closeSearch}
                               className="flex items-center gap-3 rounded px-2 py-1.5 hover:bg-surface-hover"
                             >

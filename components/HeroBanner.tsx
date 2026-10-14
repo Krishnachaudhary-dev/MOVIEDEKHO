@@ -19,6 +19,7 @@ import {
   getMediaType,
   getPosterUrl,
   getTitle,
+  getWatchPath,
   getYear,
 } from "@/lib/tmdb";
 import type { TmdbDetails, TmdbMovieResult, TmdbTvResult } from "@/lib/types/tmdb";
@@ -109,7 +110,7 @@ export default function HeroBanner({ item, details }: HeroBannerProps) {
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Link
-              href={`/watch/${kind}/${item.id}`}
+              href={getWatchPath(item)}
               className="inline-flex items-center gap-2 rounded bg-white px-6 py-2.5 font-bold text-black transition hover:bg-white/80"
             >
               <Play className="size-5 fill-current" />

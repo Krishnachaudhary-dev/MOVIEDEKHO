@@ -598,7 +598,7 @@ export async function getGenres(
 }
 
 /* ------------------------------------------------------------------ *
- * Details by media type (handy for `/watch/[id]` and `/title/[type]/[id]`)
+ * Details by media type (used by `/watch/[type]/[id]`)
  * ------------------------------------------------------------------ */
 
 /**
@@ -730,12 +730,13 @@ export function getMediaType(
   return "title" in item ? "movie" : "tv";
 }
 
-/** `/title/movie/603` — the canonical route for a title in MovieDekho. */
-export function getTitlePath(item: TmdbMovieResult | TmdbTvResult): string {
-  return `/title/${getMediaType(item)}/${item.id}`;
-}
-
-/** `/watch/movie/603` — the player route. */
+/**
+ * `/watch/movie/603` — the canonical route for a title in MovieDekho.
+ *
+ * There is no `/title/...` route: use this helper (never a hand-built string)
+ * for every link to a title, otherwise the link and the route tree drift apart
+ * and the link 404s.
+ */
 export function getWatchPath(item: TmdbMovieResult | TmdbTvResult): string {
   return `/watch/${getMediaType(item)}/${item.id}`;
 }
