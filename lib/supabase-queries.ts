@@ -99,11 +99,36 @@ export async function getStreamsFromSupabase(
 ): Promise<StreamsResponse> {
   const supabase = getSupabaseClient();
 
-  const { data: movie, error: movieError } = await supabase
-    .from('movie_streams')
-    .select('id, title')
-    .eq('tmdb_id', tmdbId)
-    .single();
+  // The title row is keyed by (tmdb_id, media_type): TMDB reuses ids across the
+  // movie and TV namespaces, so filtering on the id alone could answer a TV
+  // request with a film's mirrors.
+  const titleQuery = () =>
+    supabase
+      .from('movie_streams')
+      .select('id, title, media_type')
+      .eq('tmdb_id', tmdbId)
+      .eq('media_type', mediaType)
+      .single();
+
+  let { data: movie, error: movieError } = await titleQuery();
+
+  if (movieError?.code === '42703') {
+    // Pre-migration project: `movie_streams` has no media_type column, so a
+    // film and a series sharing an id are still one row there. Resolving by id
+    // alone is the old behaviour, and far better than serving nothing.
+    console.warn(
+      'movie_streams has no media_type column yet — resolving titles by tmdb_id alone. Re-run supabase/schema.sql to separate movies from series that share an id.',
+    );
+
+    const legacy = await supabase
+      .from('movie_streams')
+      .select('id, title')
+      .eq('tmdb_id', tmdbId)
+      .single();
+
+    movie = legacy.data ? { ...legacy.data, media_type: null } : null;
+    movieError = legacy.error;
+  }
 
   if (movieError?.code === 'PGRST116') {
     // No row for this TMDB id yet — return the demo fallback.
@@ -119,6 +144,14 @@ export async function getStreamsFromSupabase(
   if (!movieId) {
     return buildDemoResponse(tmdbId, 'no stream record in Supabase yet', mediaType);
   }
+
+  // The stored value is authoritative when it is there (a legacy row has none,
+  // and the request is then the only thing that knows what was meant).
+  const storedMediaType = movie?.media_type;
+  const recordMediaType: 'movie' | 'tv' =
+    storedMediaType === 'movie' || storedMediaType === 'tv'
+      ? storedMediaType
+      : mediaType;
 
   const sourcesQuery = () =>
     supabase
@@ -167,10 +200,8 @@ export async function getStreamsFromSupabase(
 
   const record: MovieStreamRecord = {
     tmdb_id: tmdbId,
-    // The table is keyed by tmdb_id alone, so the request is the only place
-    // that knows which namespace was meant; report it rather than assuming.
-    media_type: mediaType,
-    title: movie.title ?? `TMDB #${tmdbId}`,
+    media_type: recordMediaType,
+    title: movie?.title ?? `TMDB #${tmdbId}`,
     default_server: mapped[0]?.id ?? '',
     sources: mapped,
   };

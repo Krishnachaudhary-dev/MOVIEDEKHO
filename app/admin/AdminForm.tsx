@@ -46,6 +46,25 @@ export default function AdminForm() {
 
             <div className="space-y-4">
               <div className="grid gap-4">
+                <label>
+                  <span className="block text-sm font-medium text-foreground">
+                    Media Type
+                  </span>
+                  <select
+                    name="mediaType"
+                    required
+                    defaultValue="movie"
+                    className="mt-1 w-full rounded-lg border border-surface-hover bg-black px-3 py-2 text-white focus:border-brand focus:outline-none"
+                  >
+                    <option value="movie">Movie</option>
+                    <option value="tv">TV Show</option>
+                  </select>
+                  <span className="mt-1.5 block text-xs text-faint">
+                    Part of the title&apos;s identity: TMDB reuses ids between
+                    movies and shows, so the same number can name both.
+                  </span>
+                </label>
+
                 <div className="grid grid-cols-2 gap-4">
                   <label className="col-span-1">
                     <span className="block text-sm font-medium text-foreground">
@@ -62,7 +81,7 @@ export default function AdminForm() {
                   </label>
                   <label className="col-span-1">
                     <span className="block text-sm font-medium text-foreground">
-                      Movie Title
+                      Title
                     </span>
                     <input
                       name="title"
@@ -161,9 +180,10 @@ export default function AdminForm() {
                   </div>
                   <p className="mt-1.5 text-xs text-faint">
                     Leave both blank for a server that covers the whole title —
-                    movies, and series whose embed picks its own episode. Fill
-                    both to register a mirror for one exact episode; it then
-                    overrides the title-level server for that episode only.
+                    every movie, and series whose embed picks its own episode.
+                    Fill both to register a mirror for one exact episode; it then
+                    overrides the title-level server for that episode only. For a
+                    movie these must stay blank.
                   </p>
                 </div>
               </div>
@@ -205,7 +225,7 @@ export default function AdminForm() {
                   <p className="font-semibold">Stream source saved.</p>
                   {state.movieId ? (
                     <p className="mt-1 text-foreground/80">
-                      Linked movie record:{' '}
+                      Linked title record:{' '}
                       <span className="font-mono">{state.movieId}</span>
                     </p>
                   ) : null}

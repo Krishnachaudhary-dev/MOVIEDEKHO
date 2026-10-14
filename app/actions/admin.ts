@@ -2,6 +2,11 @@
 
 import { revalidatePath } from 'next/cache';
 
+import type {
+  PostgrestError,
+  SupabaseClient,
+} from '@supabase/supabase-js/dist/index.cjs';
+
 import { isAdminAuthenticated } from '@/app/actions/auth';
 import { describeSupabaseError, getSupabaseClient } from '@/lib/supabase';
 
@@ -53,6 +58,46 @@ function parseOptionalIndex(
   return n;
 }
 
+/**
+ * Find the title row for a (tmdb id, media type) pair.
+ *
+ * Returns `mediaTypeColumnMissing` so the caller can insert without the column
+ * on a project that has not run the migration yet — the save still works there,
+ * it just keeps the old one-row-per-id behaviour.
+ */
+async function findTitleRow(
+  supabase: SupabaseClient,
+  tmdbId: number,
+  mediaType: 'movie' | 'tv',
+): Promise<{
+  data: { id: string } | null;
+  error: PostgrestError | null;
+  mediaTypeColumnMissing: boolean;
+}> {
+  const { data, error } = await supabase
+    .from('movie_streams')
+    .select('id')
+    .eq('tmdb_id', tmdbId)
+    .eq('media_type', mediaType)
+    .single();
+
+  if (error?.code !== '42703') {
+    return { data, error, mediaTypeColumnMissing: false };
+  }
+
+  console.warn(
+    'movie_streams has no media_type column yet — saving against the tmdb_id row. Re-run supabase/schema.sql to separate movies from series that share an id.',
+  );
+
+  const legacy = await supabase
+    .from('movie_streams')
+    .select('id')
+    .eq('tmdb_id', tmdbId)
+    .single();
+
+  return { data: legacy.data, error: legacy.error, mediaTypeColumnMissing: true };
+}
+
 export async function addMovieStream(
   _previousState: AddMovieStreamResult,
   formData: FormData,
@@ -74,6 +119,11 @@ export async function addMovieStream(
     const url = String(formData.get('url') ?? '').trim();
     const typeRaw = String(formData.get('type') ?? '');
     const priority = parsePositiveInteger(formData.get('priority'), 'Priority');
+    const mediaTypeRaw = String(formData.get('mediaType') ?? 'movie').trim();
+    if (mediaTypeRaw !== 'movie' && mediaTypeRaw !== 'tv') {
+      return { ok: false, error: "Media type must be 'movie' or 'tv'." };
+    }
+    const mediaType: 'movie' | 'tv' = mediaTypeRaw;
     const seasonNumber = parseOptionalIndex(
       formData.get('seasonNumber'),
       'Season',
@@ -107,21 +157,28 @@ export async function addMovieStream(
     if (!ALLOWED_TYPES.includes(typeRaw as AllowedType)) {
       return { ok: false, error: `Source type must be one of: ${ALLOWED_TYPES.join(', ')}.` };
     }
+    if (mediaType === 'movie' && seasonNumber !== undefined) {
+      return {
+        ok: false,
+        error:
+          'A movie has no episodes — clear the season and episode, or switch the media type to TV.',
+      };
+    }
 
     const supabase = getSupabaseClient();
 
-    const { data: existing, error: existingError } = await supabase
-      .from('movie_streams')
-      .select('id')
-      .eq('tmdb_id', tmdbId)
-      .single();
+    // The title row is keyed by (tmdb_id, media_type), so the lookup has to say
+    // which one is meant — otherwise adding a mirror for a series could attach
+    // it to a film that happens to share the id.
+    const { data: existing, error: existingError, mediaTypeColumnMissing } =
+      await findTitleRow(supabase, tmdbId, mediaType);
 
     if (existingError && existingError.code !== 'PGRST116') {
-      console.error('addMovieStream: movie lookup failed', existingError);
+      console.error('addMovieStream: title lookup failed', existingError);
       return {
         ok: false,
         error: describeSupabaseError(
-          'Failed to look up the movie record',
+          'Failed to look up the title record',
           existingError,
         ),
       };
@@ -133,24 +190,30 @@ export async function addMovieStream(
     } else {
       const { data: inserted, error: insertError } = await supabase
         .from('movie_streams')
-        .insert({ tmdb_id: tmdbId, title })
+        .insert({
+          tmdb_id: tmdbId,
+          title,
+          // Omitted on a project that has not migrated: the table has no such
+          // column there, and one row per tmdb_id is all it can hold.
+          ...(mediaTypeColumnMissing ? {} : { media_type: mediaType }),
+        })
         .select('id')
         .single();
 
       if (insertError) {
         // Report the provider's own message (missing table, RLS denial, bad
         // key, …) instead of a generic string — this is what the admin sees.
-        console.error('addMovieStream: movie insert failed', insertError);
+        console.error('addMovieStream: title insert failed', insertError);
         return {
           ok: false,
           error: describeSupabaseError(
-            'Failed to create movie record',
+            'Failed to create the title record',
             insertError,
           ),
         };
       }
       if (!inserted?.id) {
-        return { ok: false, error: 'Movie record was not created.' };
+        return { ok: false, error: 'The title record was not created.' };
       }
       movieId = inserted.id;
     }

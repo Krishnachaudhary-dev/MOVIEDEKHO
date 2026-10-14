@@ -4,24 +4,27 @@
 --   Supabase dashboard → SQL Editor → paste this file → Run.
 --
 -- The admin tool (/admin) writes to these two tables; the player reads them
--- through /api/streams/[tmdbId] and through the watch page. Safe to re-run:
--- everything below is idempotent, including the column additions further down
--- that back per-episode TV sources.
+-- through /api/streams/[tmdbId] and through the watch page. Safe to re-run: the
+-- create statements are idempotent and the migration block below upgrades a
+-- project that predates `media_type` and the per-episode columns.
 
 create extension if not exists "pgcrypto";
 
--- One row per title. `tmdb_id` is unique so the admin "find or create" lookup
--- can never produce a duplicate title row.
+-- One row per title, keyed by the TMDB id *and* the media type. TMDB numbers
+-- movies and series in separate namespaces — the same id is routinely both a
+-- film and a show — so `media_type` is part of the key rather than a label.
 create table if not exists public.movie_streams (
   id uuid primary key default gen_random_uuid(),
-  tmdb_id integer not null unique,
+  tmdb_id integer not null,
+  media_type text not null default 'movie',
   title text not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
 -- Many mirrors per title. `type` matches the StreamSourceType union in
--- lib/types/sources.ts.
+-- lib/types/sources.ts. `movie_id` points at a title row, which is now either
+-- a movie or a series; the name is kept for compatibility with existing rows.
 create table if not exists public.stream_sources (
   id uuid primary key default gen_random_uuid(),
   movie_id uuid not null references public.movie_streams (id) on delete cascade,
@@ -32,19 +35,47 @@ create table if not exists public.stream_sources (
   created_at timestamptz not null default now()
 );
 
--- The player orders sources by priority for a given movie.
+-- The player orders sources by priority for a given title.
 create index if not exists stream_sources_movie_id_priority_idx
   on public.stream_sources (movie_id, priority desc);
 
--- ── Episode-scoped mirrors (TV) ─────────────────────────────────────────────
--- Added after the first release, so these are `add column if not exists` rather
--- than part of the create above — an existing project picks them up by
--- re-running this file.
+-- ── Migration: separate movies from TV by id ────────────────────────────────
+-- A fresh project already has the column and the composite key from the create
+-- above; for an older project these statements are what upgrade it, and they are
+-- no-ops when it is already current.
+alter table public.movie_streams
+  add column if not exists media_type text not null default 'movie';
+
+-- The original table had a plain unique(tmdb_id). It has to go, or a film and a
+-- series that share an id can never both be stored. Postgres named it
+-- `movie_streams_tmdb_id_key` because it was declared inline.
+alter table public.movie_streams
+  drop constraint if exists movie_streams_tmdb_id_key;
+alter table public.movie_streams
+  drop constraint if exists movie_streams_tmdb_id_media_type_key;
+alter table public.movie_streams
+  add constraint movie_streams_tmdb_id_media_type_key
+  unique (tmdb_id, media_type);
+
+-- `media_type` is a two-value enum in all but name.
+alter table public.movie_streams
+  drop constraint if exists movie_streams_media_type_check;
+alter table public.movie_streams
+  add constraint movie_streams_media_type_check
+  check (media_type in ('movie', 'tv'));
+
+-- Rows that predate the column are labelled 'movie'. Anything the admin tool
+-- added before this migration was labelled the same way, so a series entered
+-- back then needs correcting once — for example:
 --
+--   update public.movie_streams set media_type = 'tv'
+--   where tmdb_id in (1399, 1396) and media_type = 'movie';
+
+-- ── Migration: episode-scoped mirrors (TV) ──────────────────────────────────
 -- Both columns null  → the mirror serves the title as a whole: every movie, and
 --                      any episode of a series (many embeds carry their own
---                      episode picker). This is what every pre-existing row is,
---                      which is why the addition is backward compatible.
+--                      episode picker). This is what every row before this
+--                      migration is, which is what makes it backward compatible.
 -- Both columns set   → the mirror serves exactly that episode, and takes
 --                      precedence over the title-level mirror for it.
 alter table public.stream_sources
@@ -60,7 +91,7 @@ alter table public.stream_sources
   add constraint stream_sources_episode_pair_check
   check ((season_number is null) = (episode_number is null));
 
--- The watch page asks for "this movie's row for this exact episode".
+-- The watch page asks for "this title's row for this exact episode".
 create index if not exists stream_sources_episode_idx
   on public.stream_sources (movie_id, season_number, episode_number);
 
