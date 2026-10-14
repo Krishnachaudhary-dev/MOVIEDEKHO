@@ -49,6 +49,18 @@ alter table public.movie_streams
 -- The original table had a plain unique(tmdb_id). It has to go, or a film and a
 -- series that share an id can never both be stored. Postgres named it
 -- `movie_streams_tmdb_id_key` because it was declared inline.
+--
+-- If this table was ever created outside this file, a differently named
+-- constraint on tmdb_id alone can survive this drop. Confirm none is left:
+--
+--   select conname, pg_get_constraintdef(oid)
+--   from pg_constraint
+--   where conrelid = 'public.movie_streams'::regclass and contype = 'u';
+--
+-- …and drop anything still unique on tmdb_id by itself:
+--
+--   alter table public.movie_streams drop constraint <that name>;
+--
 alter table public.movie_streams
   drop constraint if exists movie_streams_tmdb_id_key;
 alter table public.movie_streams
