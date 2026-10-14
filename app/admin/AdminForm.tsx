@@ -20,7 +20,7 @@ export default function AdminForm() {
   >(addMovieStream, { ok: false });
 
   return (
-    <div className="flex min-h-screen flex-col bg-black">
+    <div className="flex min-h-screen flex-col bg-black pt-24 sm:pt-20">
       <header className="border-b border-white/10 px-6 py-4">
         <div className="mx-auto flex max-w-3xl items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-lg bg-brand/20">
