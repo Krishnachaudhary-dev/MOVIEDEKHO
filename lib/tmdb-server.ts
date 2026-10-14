@@ -27,6 +27,9 @@ import {
   getAiringTodayTv as getAiringTodayTvRaw,
   getGenres as getGenresRaw,
   getMovieDetails as getMovieDetailsRaw,
+  getMovieRecommendations as getMovieRecommendationsRaw,
+  getMovieReviews as getMovieReviewsRaw,
+  getSimilarMovies as getSimilarMoviesRaw,
   getNowPlayingMovies as getNowPlayingMoviesRaw,
   getOnTheAirTv as getOnTheAirTvRaw,
   getPopularMovies as getPopularMoviesRaw,
@@ -34,7 +37,10 @@ import {
   getTopRatedMovies as getTopRatedMoviesRaw,
   getTopRatedTv as getTopRatedTvRaw,
   getTvDetails as getTvDetailsRaw,
+  getTvRecommendations as getTvRecommendationsRaw,
+  getTvReviews as getTvReviewsRaw,
   getTvSeason as getTvSeasonRaw,
+  getSimilarTv as getSimilarTvRaw,
   getTrendingTitles as getTrendingTitlesRaw,
   getUpcomingMovies as getUpcomingMoviesRaw,
   searchMulti as searchMultiRaw,
@@ -52,6 +58,7 @@ import type {
   TmdbListResponse,
   TmdbMovieDetails,
   TmdbMovieResult,
+  TmdbReview,
   TmdbSearchOptions,
   TmdbSeasonDetails,
   TmdbTimeWindow,
@@ -218,6 +225,72 @@ export async function getTvSeason(
   "use cache";
   cacheLife("hours");
   return attempt(() => getTvSeasonRaw(tvId, seasonNumber));
+}
+
+/* ------------------------------------------------------------------ *
+ * Title pages (/title/[type]/[id])
+ * ------------------------------------------------------------------ */
+
+/**
+ * "More Like This" for the title page: TMDB `recommendations` first, topped
+ * up from `similar` when the list is short (new/obscure titles often return
+ * just a handful of recommendations). Deduped by id, capped at 18.
+ */
+export async function getMoreLikeThis(
+  mediaType: "movie" | "tv",
+  id: number,
+): Promise<TmdbOutcome<Array<TmdbMovieResult | TmdbTvResult>>> {
+  "use cache";
+  cacheLife("hours");
+
+  const recommendations =
+    mediaType === "movie"
+      ? await attempt(() => getMovieRecommendationsRaw(id))
+      : await attempt(() => getTvRecommendationsRaw(id));
+  if (!recommendations.ok) return recommendations;
+
+  // Widened up front: `similar` top-up merges the other media type's shape.
+  const items: (TmdbMovieResult | TmdbTvResult)[] = [...recommendations.data.results];
+  if (items.length >= 12) {
+    return { ok: true, data: items.slice(0, 18) };
+  }
+
+  const similar =
+    mediaType === "movie"
+      ? await attempt(() => getSimilarMoviesRaw(id))
+      : await attempt(() => getSimilarTvRaw(id));
+  if (similar.ok) {
+    const seen = new Set(items.map((item) => item.id));
+    for (const item of similar.data.results) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        items.push(item);
+      }
+      if (items.length >= 18) break;
+    }
+  }
+
+  return { ok: true, data: items };
+}
+
+/** TMDB user reviews for a title — newest first, capped at 10. */
+export async function getTitleReviews(
+  mediaType: "movie" | "tv",
+  id: number,
+): Promise<TmdbOutcome<TmdbReview[]>> {
+  "use cache";
+  cacheLife("hours");
+
+  const list =
+    mediaType === "movie"
+      ? await attempt(() => getMovieReviewsRaw(id))
+      : await attempt(() => getTvReviewsRaw(id));
+  if (!list.ok) return list;
+
+  const reviews = [...list.data.results].sort(
+    (a, b) => Date.parse(b.created_at) - Date.parse(a.created_at),
+  );
+  return { ok: true, data: reviews.slice(0, 10) };
 }
 
 /* ------------------------------------------------------------------ *

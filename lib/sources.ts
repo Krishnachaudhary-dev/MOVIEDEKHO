@@ -70,62 +70,80 @@ function streamKey(tmdbId: number, mediaType: 'movie' | 'tv'): string {
   return `${mediaType}:${tmdbId}`;
 }
 
-/** Deterministic pseudo-id from the numeric tmdb id — stable across builds. */
-function hashId(tmdbId: number): number {
-  let x = (tmdbId ^ 0x9e3779b9) >>> 0;
-  x ^= x << 13;
-  x >>>= 0;
-  x ^= x >>> 17;
-  x ^= x << 5;
-  x >>>= 0;
-  return x;
-}
-
-/** Build the demo fallback record when nothing else is available. */
-function buildFallback(tmdbId: number): MovieStreamRecord {
-  const bucket = hashId(tmdbId) % 100;
+/**
+ * Build the fallback record when a title has no mirrors anywhere.
+ *
+ * These are the standard TMDB-keyed embed providers with URL patterns
+ * documented in public open-source repos (VidSrc.to/.xyz/.cc `/v2`,
+ * `player.autoembed.cc`, `embed.su`, `multiembed.mov`): `embed/movie/{id}`
+ * and `embed/tv/{id}/{season}/{episode}`. A dead provider lands in the
+ * player's error UI and the switcher bar picks the next server — mirrored
+ * servers from Supabase always outrank this fallback because they are what
+ * the admin actually configured.
+ */
+function buildFallback(
+  tmdbId: number,
+  mediaType: 'movie' | 'tv',
+  selection?: StreamSelection,
+): MovieStreamRecord {
+  // TV embeds key by season/episode; with no selection the first episode of
+  // season 1 is the conventional default (same shape the old hardcoded
+  // Breaking Bad entry used).
+  const season = selection?.season ?? 1;
+  const episode = selection?.episode ?? 1;
+  const path =
+    mediaType === 'movie' ? `movie/${tmdbId}` : `tv/${tmdbId}/${season}/${episode}`;
+  const episodeQuery = mediaType === 'movie' ? '' : `&s=${season}&e=${episode}`;
 
   const sources: StreamSource[] = [
     {
-      id: 'demo-hls',
-      name: 'Demo Stream (HLS)',
-      url: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-      type: 'm3u8',
-      quality: 'Auto',
+      id: 'vidsrc-to',
+      name: 'VidSrc',
+      url: `https://vidsrc.to/embed/${path}`,
+      type: 'embed',
       priority: 100,
     },
     {
-      id: 'demo-mp4',
-      name: 'Demo Stream (MP4)',
-      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-      type: 'mp4',
-      quality: '720p',
+      id: 'autoembed',
+      name: 'AutoEmbed',
+      url: `https://player.autoembed.cc/embed/${path}`,
+      type: 'embed',
+      priority: 90,
+    },
+    {
+      id: 'embed-su',
+      name: 'Embed.su',
+      url: `https://embed.su/embed/${path}`,
+      type: 'embed',
+      priority: 80,
+    },
+    {
+      id: 'superembed',
+      name: 'SuperEmbed',
+      url: `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1${episodeQuery}`,
+      type: 'embed',
+      priority: 70,
+    },
+    {
+      id: 'vidsrc-xyz',
+      name: 'VidSrc XYZ',
+      url: `https://vidsrc.xyz/embed/${path}`,
+      type: 'embed',
       priority: 60,
+    },
+    {
+      id: 'vidsrc-cc',
+      name: 'VidSrc CC',
+      url: `https://vidsrc.cc/v2/embed/${path}`,
+      type: 'embed',
+      priority: 50,
     },
   ];
 
-  if (bucket < 40) {
-    sources.push({
-      id: 'demo-embed',
-      name: 'Demo Embedded Player',
-      url: 'https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ',
-      type: 'embed',
-      priority: 40,
-    });
-  }
-
-  sources.push({
-    id: 'demo-server-1',
-    name: 'Demo Server 1',
-    url: 'https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ',
-    type: 'embed',
-    priority: 30,
-  });
-
   return {
     tmdb_id: tmdbId,
-    media_type: 'movie',
-    title: `Demo streams for TMDB #${tmdbId}`,
+    media_type: mediaType,
+    title: `Stream mirrors for TMDB #${tmdbId}`,
     default_server: sources[0]!.id,
     sources,
   };
@@ -152,10 +170,16 @@ export async function getMovieSources(
   }
 
   const key = streamKey(tmdbId, mediaType);
-  const record = byKey.get(key) ?? buildFallback(tmdbId);
-  // The bundled seed knows nothing about episodes: whatever it holds for a
-  // series plays title-level, and saying so lets the watch page label it.
-  return { record, fallback: !byKey.has(key), sourceScope: 'title' };
+  const record = byKey.get(key);
+  if (record) {
+    // The bundled seed knows nothing about episodes: whatever it holds for a
+    // series plays title-level, and saying so lets the watch page label it.
+    return { record, fallback: false, sourceScope: 'title' };
+  }
+
+  // Un-mirrored title: the standard public embeds, episode-aware for TV when
+  // a selection is known (previously this always reported media_type 'movie').
+  return { record: buildFallback(tmdbId, mediaType, selection), fallback: true, sourceScope: 'title' };
 }
 
 /** All curated records — used by admin/debug surfaces later. */

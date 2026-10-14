@@ -6,6 +6,7 @@ import RowError from "@/components/RowError";
 import RowFallback from "@/components/RowFallback";
 import {
   discoverMovies,
+  getDetailsByType,
   getPopularMovies,
   getTopRatedMovies,
   getTrendingTitles,
@@ -34,11 +35,21 @@ async function TrendingSection() {
     .filter((item) => item.media_type !== "person")
     .slice(0, 18);
 
+  const heroItem = items[0];
+  // Hero details (genres, runtime/seasons) ride along in a second cached call —
+  // an hours-cached entry, not a per-request cost.
+  const heroDetails = heroItem
+    ? await getDetailsByType("title" in heroItem ? "movie" : "tv", heroItem.id)
+    : null;
+
   return (
     <>
-      {items[0] ? (
+      {heroItem ? (
         <div className="-mt-16 sm:-mt-24">
-          <HeroBanner item={items[0]} />
+          <HeroBanner
+            item={heroItem}
+            details={heroDetails?.ok ? heroDetails.data : null}
+          />
         </div>
       ) : null}
       <div className="mt-6 space-y-8">

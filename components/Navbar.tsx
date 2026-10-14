@@ -21,7 +21,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
-import { getTitle, getMediaType, getYear, getPosterUrl, getWatchPath } from "@/lib/tmdb";
+import { getTitle, getMediaType, getYear, getPosterUrl, getTitlePath } from "@/lib/tmdb";
 import type {
   TmdbListItem,
   TmdbMovieResult,
@@ -29,17 +29,14 @@ import type {
 } from "@/lib/types/tmdb";
 
 /**
- * The one nav destination with no route behind it yet: the watchlist needs a
- * persistence design first. It is kept as a non-navigating placeholder so the
- * header never links to — or prefetches — a 404.
+ * The nav destinations. All four routes exist; My List is device-local
+ * (localStorage) via `lib/my-list`.
  */
-const PENDING_HREF = "/my-list";
-
 const NAV_LINKS = [
   { href: "/", label: "Home", icon: Home },
   { href: "/movies", label: "Movies", icon: Film },
   { href: "/tv", label: "TV Shows", icon: Tv },
-  { href: PENDING_HREF, label: "My List", icon: Bookmark },
+  { href: "/my-list", label: "My List", icon: Bookmark },
 ] as const;
 
 const DEBOUNCE_MS = 300;
@@ -157,26 +154,16 @@ export default function Navbar() {
                 : pathname.startsWith(link.href);
             return (
               <li key={link.href}>
-                {link.href === PENDING_HREF ? (
-                  <span
-                    aria-disabled="true"
-                    title="Watchlist coming soon"
-                    className="cursor-default font-medium text-faint"
-                  >
-                    {link.label}
-                  </span>
-                ) : (
-                  <Link
-                    href={link.href}
-                    className={
-                      active
-                        ? "font-semibold text-foreground"
-                        : "font-medium text-muted transition-colors hover:text-foreground"
-                    }
-                  >
-                    {link.label}
-                  </Link>
-                )}
+                <Link
+                  href={link.href}
+                  className={
+                    active
+                      ? "font-semibold text-foreground"
+                      : "font-medium text-muted transition-colors hover:text-foreground"
+                  }
+                >
+                  {link.label}
+                </Link>
               </li>
             );
           })}
@@ -251,10 +238,9 @@ export default function Navbar() {
                         return (
                           <li key={`${kind}-${item.id}`}>
                             <Link
-                              // `/title/[type]/[id]` was never built — every
-                              // search result 404'd. The player route is the
-                              // only title route in this app.
-                              href={getWatchPath(item)}
+                              // The title page is the browse surface now; the
+                              // player is one click away under "Watch Now".
+                              href={getTitlePath(item)}
                               onClick={closeSearch}
                               className="flex items-center gap-3 rounded px-2 py-1.5 hover:bg-surface-hover"
                             >
@@ -307,22 +293,16 @@ export default function Navbar() {
       <ul className="no-scrollbar flex items-center gap-4 overflow-x-auto px-4 pb-2 text-xs md:hidden">
         {NAV_LINKS.map((link) => (
           <li key={link.href}>
-            {link.href === PENDING_HREF ? (
-              <span aria-disabled="true" title="Watchlist coming soon" className="cursor-default text-faint">
-                {link.label}
-              </span>
-            ) : (
-              <Link
-                href={link.href}
-                className={
-                  (link.href === "/" ? pathname === "/" : pathname.startsWith(link.href))
-                    ? "font-semibold text-foreground"
-                    : "text-muted"
-                }
-              >
-                {link.label}
-              </Link>
-            )}
+            <Link
+              href={link.href}
+              className={
+                (link.href === "/" ? pathname === "/" : pathname.startsWith(link.href))
+                  ? "font-semibold text-foreground"
+                  : "text-muted"
+              }
+            >
+              {link.label}
+            </Link>
           </li>
         ))}
       </ul>

@@ -8,12 +8,13 @@
  * server proxy (key stays server-side) for genres and runtime.
  */
 
-import { BookOpen, Play, Star, X } from "lucide-react";
+import { Bookmark, BookmarkCheck, Play, Star, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { getMediaType, getWatchPath, getYear } from "@/lib/tmdb";
+import { getMediaType, getTitlePath, getWatchPath, getYear } from "@/lib/tmdb";
+import { useInMyList } from "@/lib/my-list";
 import type { TmdbDetails } from "@/lib/types/tmdb";
 import type { TmdbMovieResult, TmdbTvResult } from "@/lib/types/tmdb";
 
@@ -35,6 +36,7 @@ export default function DetailsModal({
   onClose,
 }: DetailsModalProps) {
   const kind = getMediaType(item);
+  const [inList, toggleList] = useInMyList(item.id, kind);
   const [state, setState] = useState<DetailsState>({
     loading: true,
     details: null,
@@ -167,13 +169,26 @@ export default function DetailsModal({
             </Link>
             <button
               type="button"
+              onClick={toggleList}
+              aria-pressed={inList}
+              title={inList ? "In My List" : "Add to My List"}
               className="inline-flex items-center justify-center gap-2 rounded bg-surface-raised px-4 py-2.5 font-medium transition hover:bg-surface-hover"
-              title="Coming in the watchlist milestone"
             >
-              <BookOpen className="size-4" />
-              My List
+              {inList ? (
+                <BookmarkCheck className="size-4 fill-brand text-brand" />
+              ) : (
+                <Bookmark className="size-4" />
+              )}
+              {inList ? "Saved" : "My List"}
             </button>
           </div>
+
+          <Link
+            href={getTitlePath(item)}
+            className="mt-3 block text-center text-xs font-medium text-brand hover:underline"
+          >
+            Full details, cast & reviews →
+          </Link>
         </div>
       </div>
     </div>

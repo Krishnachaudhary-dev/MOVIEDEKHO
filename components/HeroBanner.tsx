@@ -86,7 +86,7 @@ export default function HeroBanner({ item, details }: HeroBannerProps) {
             {title}
           </h1>
 
-          <div className="mt-3 flex items-center gap-2 text-sm">
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
             <span className="inline-flex items-center gap-1 rounded bg-brand px-2 py-0.5 font-bold">
               <Star className="size-3.5 fill-current" />
               {rating.toFixed(1)}
@@ -101,6 +101,20 @@ export default function HeroBanner({ item, details }: HeroBannerProps) {
               </span>
             ) : null}
           </div>
+
+          {/* Genre tags — only when full details were fetched for the hero. */}
+          {details?.genres && details.genres.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {details.genres.slice(0, 3).map((genre) => (
+                <span
+                  key={genre.id}
+                  className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-foreground/90"
+                >
+                  {genre.name}
+                </span>
+              ))}
+            </div>
+          ) : null}
 
           {overview && (
             <p className="mt-4 max-w-lg text-sm leading-relaxed text-foreground/90 sm:text-base">

@@ -43,12 +43,8 @@ export default function VideoPlayer({
   });
   const [paused, setPaused] = React.useState(true);
 
-  let cleanupTimer: ReturnType<typeof setTimeout> | null = null;
-
   const active = sources[activeIndex];
   const isEmbed = active.type === "embed";
-  const isHls = active.type === "m3u8";
-  const isMp4 = active.type === "mp4";
   const activeSrc = active.url;
 
   const formatElapsed = (seconds: number): string => {
@@ -66,7 +62,6 @@ export default function VideoPlayer({
     src: string,
     onSuccess: () => void,
     onError: (message: string) => void,
-    onStalled: () => void,
   ) => {
     const hls = new Hls({
       enableWorker: true,
@@ -86,8 +81,6 @@ export default function VideoPlayer({
 
     const onEvent = (event: Events, data: unknown) => {
       if (event === Events.MANIFEST_PARSED) {
-        if (cleanupTimer) clearTimeout(cleanupTimer);
-        cleanupTimer = null;
         const levels = hls.levels;
         if (!levels || levels.length === 0) {
           hls.destroy();
@@ -116,10 +109,10 @@ export default function VideoPlayer({
         onSuccess();
       } else if (event === Events.ERROR) {
         const errorData = data as ErrorData;
-        if (errorData.type === ErrorTypes.NETWORK_ERROR) {
+        if (errorData.type === ErrorTypes.NETWORK_ERROR && errorData.fatal) {
           hls.destroy();
           onError("Network error loading the stream");
-        } else if (errorData.type === ErrorTypes.MEDIA_ERROR) {
+        } else if (errorData.type === ErrorTypes.MEDIA_ERROR && errorData.fatal) {
           hls.destroy();
           onError(
             "Media error — stream may not be playable",
@@ -130,19 +123,6 @@ export default function VideoPlayer({
 
     hls.on(Events.ERROR, onEvent);
     hls.on(Events.MANIFEST_PARSED, onEvent);
-
-    const stalledAt = () => {
-      if (cleanupTimer) clearTimeout(cleanupTimer);
-      cleanupTimer = setTimeout(() => {
-        if (hlsRef.current?.hls === hls) {
-          hls.destroy();
-          onError("Stream stalled — try a different server");
-        }
-      }, 3_000);
-    };
-    hls.on(Events.MANIFEST_PARSED, () => {
-      stalledAt();
-    });
 
     try {
       hls.loadSource(src);
@@ -155,9 +135,21 @@ export default function VideoPlayer({
 
   // ---- mount ----
 
-  const mountPlayer = async () => {
-    if (isEmbed) {
-      // nothing to mount — iframe ready state handled by onLoad
+  /**
+   * Attach the given source (defaults to the active one). Embed sources
+   * self-attach via the iframe; mp4/HLS go through the <video> element.
+   * All failure paths end in a rendered error state — nothing here throws
+   * past the mount effect (that was an unhandled rejection before).
+   */
+  const mountPlayer = async (targetIndex: number = activeIndex) => {
+    const source = sources[targetIndex];
+    if (!source) {
+      setPlayState({ kind: "error", reason: "No source selected." });
+      return;
+    }
+
+    if (source.type === "embed") {
+      // Nothing to attach — the iframe's onLoad/error handlers own this state.
       return;
     }
 
@@ -167,73 +159,96 @@ export default function VideoPlayer({
       return;
     }
 
-    if (isMp4) {
-      el.src = activeSrc;
+    // Tear down any previous HLS session before attaching a new one.
+    hlsRef.current?.destroy();
+
+    if (source.type === "mp4") {
+      el.src = source.url;
       el.load();
       return;
     }
 
-    if (isHls) {
+    if (source.type === "m3u8") {
       if (!isHlsJsSupported()) {
         // Native HLS in Safari: point the <video> tag directly at the .m3u8.
-        el.src = activeSrc;
+        el.src = source.url;
         el.load();
         return;
       }
-      await new Promise<void>((resolve, reject) => {
-        const signal = new AbortController();
-        const timeout = setTimeout(() => signal.abort(), loadTimeoutMs);
+      await new Promise<void>((resolve) => {
+        const timeout = setTimeout(() => {
+          hlsRef.current?.destroy();
+          setPlayState({
+            kind: "error",
+            reason: "This server took too long to respond — retry or switch servers.",
+          });
+          resolve();
+        }, loadTimeoutMs);
 
         startHls(
-          activeSrc,
+          source.url,
           () => {
             clearTimeout(timeout);
-            signal.abort();
             resolve();
           },
-          (msg) => {
+          (message) => {
             clearTimeout(timeout);
-            signal.abort();
-            reject(new Error(msg));
+            setPlayState({
+              kind: "error",
+              reason: `${message} — retry or switch servers.`,
+            });
+            resolve();
           },
-          () => {
-            clearTimeout(timeout);
-            signal.abort();
-            reject(new Error("Stream stalled"));
-          },
-        );
-
-        signal.signal.addEventListener(
-          "abort",
-          () => {
-            /* cleanup handled inside startHls on abort */
-          },
-          { once: true },
         );
       });
-    } else {
-      el.src = activeSrc;
-      el.load();
     }
   };
 
   // ---- mount effect ----
 
   React.useEffect(() => {
-    mountPlayer();
+    // Deferred a tick: the mount effect is not allowed to set state
+    // synchronously (react-hooks/set-state-in-effect) and mountPlayer's sync
+    // error paths do. The player is already in `loading`, so a zero-delay
+    // hop is invisible; teardown still owns the HLS instance either way.
+    const timer = setTimeout(() => {
+      void mountPlayer();
+    }, 0);
     return () => {
+      clearTimeout(timer);
       hlsRef.current?.destroy();
     };
+    // Mount exactly once per player instance: the sources array is fixed for
+    // a given mount (the page passes a per-episode `playerKey`, so a new
+    // episode remounts the component instead of prop-drifting through here).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---- server switch ----
+  // ---- retry / server switch ----
+
+  const retry = () => {
+    setPlayState({ kind: "loading" });
+    setPaused(true);
+    if (active.type === "embed") {
+      const iframe = iframeRef.current;
+      if (iframe) iframe.src = active.url;
+    } else {
+      void mountPlayer(activeIndex);
+    }
+  };
 
   const switchServer = (index: number) => {
     if (index === activeIndex) return;
     const next = sources[index];
+    if (!next) return;
 
     setPlayState({ kind: "loading" });
     setPaused(true);
+    // Keep the state in step with the switch — without this the overlays and
+    // retry kept referencing the pre-switch source.
+    setActiveIndex(index);
+
+    hlsRef.current?.destroy();
 
     if (next.type === "embed") {
       const iframe = iframeRef.current;
@@ -245,11 +260,11 @@ export default function VideoPlayer({
         try {
           el.removeAttribute("src");
           el.load();
-          el.src = next.url;
         } catch {
           // some browsers throw on src removal while loading
         }
       }
+      void mountPlayer(index);
     }
   };
 
@@ -273,7 +288,6 @@ export default function VideoPlayer({
   const onVideoTimeUpdate = () => {
     const el = videoRef.current;
     if (!el) return;
-    const t = Math.max(0, el.currentTime ?? 0);
     setPaused(el.paused);
   };
   const onVideoPlay = () => setPaused(false);
@@ -319,10 +333,28 @@ export default function VideoPlayer({
             {playState.reason}
             {sources.length > 1 ? (
               <span className="block mt-1 text-muted">
-                Try switching servers using the buttons above.
+                Try switching servers using the buttons below.
               </span>
             ) : null}
           </p>
+          <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={retry}
+              className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-black transition hover:bg-white/80"
+            >
+              Retry
+            </button>
+            {sources.length > 1 ? (
+              <button
+                type="button"
+                onClick={() => switchServer((activeIndex + 1) % sources.length)}
+                className="rounded-lg bg-white/15 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/25"
+              >
+                Next server
+              </button>
+            ) : null}
+          </div>
         </div>
       );
     }
@@ -382,8 +414,7 @@ export default function VideoPlayer({
           src={activeSrc}
           className="h-full w-full border-0"
           title={title}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-          allowFullScreen
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           loading="eager"
           onLoad={onIframeLoad}
           onError={onIframeError}

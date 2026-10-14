@@ -22,6 +22,7 @@ import type {
   TmdbMovieResult,
   TmdbPosterSize,
   TmdbProfileSize,
+  TmdbReviewListResponse,
   TmdbSearchOptions,
   TmdbSeasonDetails,
   TmdbStillSize,
@@ -487,6 +488,28 @@ export async function getSimilarTv(
 }
 
 /* ------------------------------------------------------------------ *
+ * Reviews (/movie/{id}/reviews, /tv/{id}/reviews)
+ * ------------------------------------------------------------------ */
+
+export async function getMovieReviews(
+  movieId: number,
+  options: TmdbCommonQueryOptions = {},
+): Promise<TmdbReviewListResponse> {
+  return tmdbFetch(`/movie/${movieId}/reviews`, {
+    query: movieListQuery(options),
+  });
+}
+
+export async function getTvReviews(
+  tvId: number,
+  options: TmdbCommonQueryOptions = {},
+): Promise<TmdbReviewListResponse> {
+  return tmdbFetch(`/tv/${tvId}/reviews`, {
+    query: movieListQuery(options),
+  });
+}
+
+/* ------------------------------------------------------------------ *
  * Search
  * ------------------------------------------------------------------ */
 
@@ -749,12 +772,34 @@ export function getMediaType(
 }
 
 /**
- * `/watch/movie/603` — the canonical route for a title in MovieDekho.
+ * `/watch/movie/603` — the player route for a title.
  *
- * There is no `/title/...` route: use this helper (never a hand-built string)
- * for every link to a title, otherwise the link and the route tree drift apart
- * and the link 404s.
+ * Prefer `getTitlePath` for navigation (cards, search results): the title page
+ * is the browse surface, `/watch` is where playback starts. Use this helper
+ * (never a hand-built string) for player links so the route tree can't drift.
  */
 export function getWatchPath(item: TmdbMovieResult | TmdbTvResult): string {
   return `/watch/${getMediaType(item)}/${item.id}`;
+}
+
+/**
+ * `(mediaType, id)` twin of `getWatchPath` for callers that only have the
+ * numeric identity (My List storage, DB records) rather than a full item.
+ */
+export function getWatchPathFor(mediaType: "movie" | "tv", id: number): string {
+  return `/watch/${mediaType}/${id}`;
+}
+
+/**
+ * `/title/movie/603` — the detail/browse page for a title (cast, metadata,
+ * reviews, recommendations). TMDB media types are namespaced, so always build
+ * it through here rather than string concatenation.
+ */
+export function getTitlePath(item: TmdbMovieResult | TmdbTvResult): string {
+  return `/title/${getMediaType(item)}/${item.id}`;
+}
+
+/** `(mediaType, id)` twin of `getTitlePath` for stored identities. */
+export function getTitlePathFor(mediaType: "movie" | "tv", id: number): string {
+  return `/title/${mediaType}/${id}`;
 }

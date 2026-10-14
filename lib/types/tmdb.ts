@@ -314,6 +314,36 @@ export interface TmdbVideoList {
 }
 
 /* ------------------------------------------------------------------ *
+ * User reviews (/movie/{id}/reviews, /tv/{id}/reviews)
+ * ------------------------------------------------------------------ */
+
+export interface TmdbReview {
+  /** TMDB review id (a slug-ish string, not numeric). */
+  id: string;
+  author: string;
+  author_details: {
+    name: string | null;
+    username: string;
+    avatar_path: string | null;
+    /** 0–10 on TMDB's scale, or null when the reviewer gave no score. */
+    rating: number | null;
+  };
+  content: string;
+  /** ISO timestamp. */
+  created_at: string;
+  /** Full review page on themoviedb.org. */
+  url: string;
+}
+
+export interface TmdbReviewListResponse {
+  id: number;
+  page: number;
+  results: TmdbReview[];
+  total_pages: number;
+  total_results: number;
+}
+
+/* ------------------------------------------------------------------ *
  * Watch / streaming providers (useful for the "where to watch" row)
  * ------------------------------------------------------------------ */
 
