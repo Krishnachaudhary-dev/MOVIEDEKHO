@@ -48,7 +48,7 @@ export default function HeroBanner({ item, details }: HeroBannerProps) {
 
   return (
     <section className="relative min-h-[70vh] w-full overflow-hidden">
-      {/* Backdrop */}
+      {/* Backdrop — eases in over ~1s on first paint */}
       <div className="absolute inset-0">
         {backdrop ? (
           <Image
@@ -56,19 +56,23 @@ export default function HeroBanner({ item, details }: HeroBannerProps) {
             alt=""
             fill
             priority
+            fetchPriority="high"
+            quality={85}
             sizes="100vw"
-            className="object-cover object-top"
+            className="animate-hero-backdrop object-cover object-top"
           />
         ) : (
           <div className="h-full w-full bg-surface" />
         )}
-        {/* Legibility scrims: left column for text, bottom fade into page */}
-        <div className="scrim-right absolute inset-0" />
-        <div className="fade-to-b absolute inset-x-0 bottom-0 h-64" />
+        {/* Legibility scrims: left column for text, bottom fade into page.
+            Layered over the animated backdrop with its own fade-in so the
+            gradient floats in above the image. */}
+        <div className="animate-hero-backdrop scrim-right absolute inset-0" />
+        <div className="animate-hero-backdrop fade-to-b absolute inset-x-0 bottom-0 h-64" />
       </div>
 
       {/* Content column */}
-      <div className="relative mx-auto flex min-h-[70vh] w-full max-w-7xl flex-col justify-end px-4 pb-20 pt-36 sm:px-6">
+      <div className="animate-hero-content relative mx-auto flex min-h-[70vh] w-full max-w-7xl flex-col justify-end px-4 pb-20 pt-36 sm:px-6">
         <div className="max-w-xl">
           {year || kind ? (
             <p className="mb-2 text-sm font-medium uppercase tracking-widest text-muted">

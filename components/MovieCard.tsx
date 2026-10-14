@@ -3,8 +3,10 @@
 /**
  * MovieCard — poster thumbnail used inside every MovieRow.
  *
- * Hover: subtle scale-up + metadata overlay (year, rating, type) and a
+ * Hover: smooth scale-up + metadata overlay (year, rating, type) and a
  * click-through to the details modal (not direct navigation, Netflix-style).
+ * The lift uses transform + shadow so it stays on the compositor and never
+ * triggers layout work.
  */
 
 import { Star } from "lucide-react";
@@ -38,14 +40,14 @@ export default function MovieCard({ item, sizeClass = "w-36 sm:w-44" }: MovieCar
         className={`group relative shrink-0 text-left ${sizeClass}`}
         aria-label={`${title} details`}
       >
-        <div className="relative aspect-[2/3] w-full overflow-hidden rounded-lg bg-surface transition-transform duration-200 group-hover:scale-105 group-hover:z-10">
+        <div className="relative z-0 aspect-[2/3] w-full overflow-hidden rounded-lg bg-surface shadow-lg shadow-black/40 transition-[transform,box-shadow] duration-300 ease-out will-change-transform group-hover:z-10 group-hover:scale-105 group-hover:shadow-2xl group-hover:shadow-black/70 group-focus-visible:ring-2 group-focus-visible:ring-brand">
           {poster ? (
             <Image
               src={poster}
               alt=""
               fill
               sizes="(max-width: 640px) 144px, 176px"
-              className="object-cover"
+              className="object-cover transition-[filter] duration-300 group-hover:brightness-110"
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-xs text-faint">
@@ -53,8 +55,8 @@ export default function MovieCard({ item, sizeClass = "w-36 sm:w-44" }: MovieCar
             </div>
           )}
 
-          {/* Hover overlay — metadata */}
-          <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/85 via-black/20 to-transparent p-2.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+          {/* Hover overlay — metadata slides up as the card lifts */}
+          <div className="absolute inset-0 flex translate-y-2 flex-col justify-end bg-gradient-to-t from-black/85 via-black/20 to-transparent p-2.5 opacity-0 transition-[opacity,transform] duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100">
             <p className="truncate text-xs font-semibold">{title}</p>
             <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted">
               {year ? <span>{year}</span> : null}

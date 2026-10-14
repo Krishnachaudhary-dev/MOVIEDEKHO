@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { getTitle, getMediaType, getYear, getPosterUrl } from "@/lib/tmdb";
@@ -46,6 +46,7 @@ interface SearchState {
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -133,10 +134,10 @@ export default function Navbar() {
         scrolled ? "bg-navbar shadow-lg backdrop-blur-md" : "bg-transparent"
       }`}
     >
-      <nav className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6">
+      <nav className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:gap-6 sm:px-6">
         <Link
           href="/"
-          className="shrink-0 text-xl font-black tracking-tight text-brand"
+          className="shrink-0 text-lg font-black tracking-tight text-brand sm:text-xl"
         >
           MovieDekho
         </Link>
@@ -164,9 +165,11 @@ export default function Navbar() {
           })}
         </ul>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2 sm:flex-none">
           {searchOpen ? (
-            <div className="relative w-full max-w-xs">
+            /* Mobile: the input claims the free space; from `sm:` up it has a
+               fixed comfortable width. `min-w-0` lets it shrink cleanly. */
+            <div className="relative min-w-0 flex-[1_1_0%] sm:w-80 sm:flex-none">
               <Search
                 aria-hidden
                 className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted"
@@ -176,7 +179,7 @@ export default function Navbar() {
                   event.preventDefault();
                   const q = inputValue.trim();
                   if (q.length >= 1) {
-                    window.location.href = `/search?q=${encodeURIComponent(q)}`;
+                    router.push(`/search?q=${encodeURIComponent(q)}`);
                   }
                 }}
                 className="relative"
@@ -186,14 +189,6 @@ export default function Navbar() {
                   autoFocus
                   value={inputValue}
                   onChange={(event) => setInputValue(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      const q = inputValue.trim();
-                      if (q.length >= 1) {
-                        window.location.href = `/search?q=${encodeURIComponent(q)}`;
-                      }
-                    }
-                  }}
                   placeholder="Search movies, shows…"
                   aria-label="Search"
                   className="h-9 w-full rounded bg-surface-raised pl-8 pr-8 text-sm text-foreground outline-none ring-1 ring-transparent placeholder:text-faint focus:ring-white/40"
@@ -288,8 +283,8 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile links row */}
-      <ul className="flex items-center gap-4 px-4 pb-2 text-xs md:hidden">
+      {/* Mobile links row — horizontally scrollable if cramped */}
+      <ul className="no-scrollbar flex items-center gap-4 overflow-x-auto px-4 pb-2 text-xs md:hidden">
         {NAV_LINKS.map((link) => (
           <li key={link.href}>
             <Link

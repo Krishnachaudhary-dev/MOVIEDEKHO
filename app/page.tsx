@@ -20,16 +20,16 @@ import type { TmdbMovieResult, TmdbTvResult } from "@/lib/types/tmdb";
 
 type TitleItem = TmdbMovieResult | TmdbTvResult;
 
-/** Row skeleton shown while a section streams in. */
+/** Row skeleton shown while a section streams in — shimmer band, not pulse. */
 function RowFallback() {
   return (
     <section className="mt-8" aria-busy>
-      <div className="mb-3 h-6 w-40 animate-pulse rounded bg-surface-raised" />
-      <ul className="no-scrollbar flex gap-3 overflow-hidden px-4 sm:px-6">
+      <div className="bg-skeleton mb-3 h-6 w-40 rounded" />
+      <ul className="no-scrollbar flex gap-3 overflow-hidden px-4 py-1 sm:px-6">
         {Array.from({ length: 8 }, (_, i) => (
           <li
             key={i}
-            className="aspect-[2/3] w-36 shrink-0 animate-pulse rounded-lg bg-surface-raised sm:w-44"
+            className="bg-skeleton aspect-[2/3] w-36 shrink-0 rounded-lg sm:w-44"
           />
         ))}
       </ul>
@@ -157,12 +157,12 @@ function HeroFallback() {
       <div className="absolute inset-0 bg-surface" />
       <div className="fade-to-b absolute inset-x-0 bottom-0 h-64" />
       <div className="relative mx-auto flex min-h-[70vh] max-w-7xl flex-col justify-end px-4 pb-20 sm:px-6">
-        <div className="h-4 w-24 animate-pulse rounded bg-surface-raised" />
-        <div className="mt-3 h-12 w-80 max-w-full animate-pulse rounded bg-surface-raised" />
-        <div className="mt-4 h-10 w-64 max-w-full animate-pulse rounded bg-surface-raised" />
+        <div className="bg-skeleton h-4 w-24 rounded" />
+        <div className="bg-skeleton mt-3 h-12 w-80 max-w-full rounded" />
+        <div className="bg-skeleton mt-4 h-10 w-64 max-w-full rounded" />
         <div className="mt-6 flex gap-3">
-          <div className="h-10 w-32 animate-pulse rounded bg-surface-raised" />
-          <div className="h-10 w-32 animate-pulse rounded bg-surface-raised" />
+          <div className="bg-skeleton h-10 w-32 rounded" />
+          <div className="bg-skeleton h-10 w-32 rounded" />
         </div>
       </div>
     </section>
