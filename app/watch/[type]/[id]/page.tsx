@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import VideoPlayer from "@/components/VideoPlayerFixed";
 import { getDetailsByType } from "@/lib/tmdb-server";
 import { getMovieSources } from "@/lib/sources";
@@ -66,25 +67,34 @@ export default async function WatchPage({
     : null;
 
   return (
-    <div className="min-h-screen bg-black flex flex-col">
-      <main className="flex-1 relative flex items-center justify-center p-4 sm:p-6">
-        {record.sources.length > 0 ? (
-          <VideoPlayer title={pageTitle} sources={record.sources} autoplay={false} />
-        ) : (
-          <NoStreamsFallback title={pageTitle} posterSrc={posterSrc} />
-        )}
+    <div className="flex min-h-screen flex-col bg-black">
+      <main className="flex-1">
+        {/* Cinematic column — capped at max-w-6xl, centered, breathable on
+            mobile and comfortable on desktop. */}
+        <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+          <h1 className="mb-4 text-2xl font-black leading-tight sm:mb-6 sm:text-4xl">
+            {pageTitle}
+          </h1>
+          {record.sources.length > 0 ? (
+            <VideoPlayer title={pageTitle} sources={record.sources} autoplay={false} />
+          ) : (
+            <NoStreamsFallback title={pageTitle} posterSrc={posterSrc} />
+          )}
+        </div>
       </main>
 
       {details && "overview" in details && details.overview && (
-        <section className="max-w-3xl mx-auto px-4 text-sm leading-relaxed text-foreground/80">
-          <h2 className="mb-3 text-lg font-bold uppercase tracking-wider text-muted">
+        <section className="mx-auto max-w-6xl px-4 pb-10 sm:px-6">
+          <h2 className="mb-3 text-lg font-bold uppercase tracking-wider text-muted sm:text-xl">
             Synopsis
           </h2>
-          <p className="line-clamp-5">{details.overview}</p>
+          <p className="max-w-3xl text-sm leading-relaxed text-foreground/80 sm:text-base">
+            {details.overview}
+          </p>
         </section>
       )}
 
-      <div className="px-4 pb-6 text-center text-xs text-muted">
+      <div className="px-4 pb-6 text-center text-xs text-muted sm:px-6">
         Streams are provided by third-party mirrors and may be unavailable.
       </div>
     </div>
@@ -99,13 +109,19 @@ function NoStreamsFallback({
   posterSrc: string | null;
 }) {
   return (
-    <div className="relative flex min-h-[70vh] w-full items-center justify-center p-6">
+    <div className="relative flex min-h-[70vh] w-full items-center justify-center p-2 sm:p-6">
       <div className="absolute inset-0 rounded-3xl bg-gradient-to-t from-black via-black/80 to-black/20" />
 
       <div className="relative z-10 flex max-w-lg flex-col items-center gap-4 text-center">
         <div className="relative h-56 w-full max-w-md overflow-hidden rounded-xl bg-surface">
           {posterSrc ? (
-            <img src={posterSrc} alt={title} className="size-full object-cover" />
+            <Image
+              src={posterSrc}
+              alt={title}
+              fill
+              sizes="(max-width: 768px) 100vw, 448px"
+              className="object-cover"
+            />
           ) : (
             <div className="flex h-full items-center justify-center text-muted">
               <span>No poster</span>
@@ -113,7 +129,7 @@ function NoStreamsFallback({
           )}
         </div>
 
-        <h1 className="text-3xl font-black">{title}</h1>
+        <h1 className="text-2xl font-black sm:text-3xl">{title}</h1>
         <p className="text-muted">No streams available for this title yet.</p>
 
         <div className="flex gap-3">

@@ -1,6 +1,7 @@
 "use client";
 
-import { Pause, Play, RefreshCw, WifiOff } from "lucide-react";
+import { Pause, Play, RefreshCw, WifiOff, ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import React from "react";
 import Hls from "hls.js";
 import { Events, ErrorTypes, type ErrorData } from "hls.js";
@@ -35,9 +36,10 @@ export default function VideoPlayer({
   const hlsRef = React.useRef<{ hls: Hls; destroy: () => void } | null>(null);
 
   const [activeIndex, setActiveIndex] = React.useState(0);
+  // The player boots in a loading state; loading → playing/error transitions
+  // are driven by media events, so no setState runs inside the mount effect.
   const [playState, setPlayState] = React.useState<PlayingState>({
-    kind: "idle",
-    elapsed: 0,
+    kind: "loading",
   });
   const [paused, setPaused] = React.useState(true);
 
@@ -154,8 +156,6 @@ export default function VideoPlayer({
   // ---- mount ----
 
   const mountPlayer = async () => {
-    setPlayState({ kind: "loading" });
-
     if (isEmbed) {
       // nothing to mount — iframe ready state handled by onLoad
       return;
@@ -369,15 +369,18 @@ export default function VideoPlayer({
   // ---- render ----
 
   return (
-    <div
-      ref={playerRef}
-      className={`relative flex min-h-0 aspect-video bg-black overflow-hidden rounded-2xl ${isEmbed ? "shadow-2xl" : "shadow-xl"}`}
-    >
+    <div className="w-full">
+      {/* Cinematic 16:9 frame — full-width inside the max-w-6xl page column,
+          unified rounded corners, deep shadow, hairline ring for depth. */}
+      <div
+        ref={playerRef}
+        className="relative aspect-video w-full overflow-hidden rounded-xl bg-black shadow-2xl ring-1 ring-white/10"
+      >
       {isEmbed ? (
         <iframe
           ref={iframeRef}
           src={activeSrc}
-          className="size-full border-0"
+          className="h-full w-full border-0"
           title={title}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
           allowFullScreen
@@ -389,7 +392,7 @@ export default function VideoPlayer({
         <video
           ref={videoRef}
           src={activeSrc}
-          className="size-full bg-black object-contain"
+          className="h-full w-full bg-black object-cover"
           playsInline
           controls
           controlsList={isEmbed ? undefined : "nodownload"}
@@ -410,22 +413,25 @@ export default function VideoPlayer({
 
       {!isEmbed && renderOverlay()}
 
-      <button
-        type="button"
-        onClick={() => (window.location.href = "/")}
-        className="absolute left-3 top-3 z-30 rounded-md bg-black/70 px-3 py-1.5 text-xs font-medium text-white drop-shadow transition hover:bg-black/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+      <Link
+        href="/"
+        className="absolute left-3 top-3 z-30 inline-flex items-center gap-1.5 rounded-md bg-black/70 px-3 py-1.5 text-xs font-medium text-white drop-shadow backdrop-blur-sm transition hover:bg-black/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
       >
-        ← Back to Browse
-      </button>
+        <ArrowLeft className="size-3.5" />
+        Back to Browse
+      </Link>
+      </div>
 
-      <div className="absolute right-3 top-3 z-30 flex flex-col gap-1.5">
-        <div className="flex flex-wrap gap-1.5 rounded-lg bg-black/70 p-1 shadow-lg backdrop-blur-sm">
+      {/* Control bar — spacing, buttons and status sit below the player so
+          overlays never cover the picture on small screens. */}
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-wrap items-center gap-1.5">
           {sources.map((source, index) => (
             <button
               key={source.id}
               type="button"
               onClick={() => switchServer(index)}
-              className={`relative rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 ${index === activeIndex ? "bg-brand text-white shadow-md" : "text-muted hover:bg-white/10 hover:text-white"}`}
+              className={`relative rounded-lg px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand sm:text-xs sm:px-2.5 sm:py-1.5 ${index === activeIndex ? "bg-brand text-white shadow-md" : "bg-surface-raised text-muted hover:bg-surface-hover hover:text-foreground"}`}
               title={source.name + (source.quality ? ` · ${source.quality}` : "")}
             >
               {source.name}
@@ -437,8 +443,9 @@ export default function VideoPlayer({
             </button>
           ))}
         </div>
+
         <div
-          className={`rounded-md bg-black/70 px-2 py-1 text-[11px] font-medium text-muted backdrop-blur-sm ${playState.kind === "playing" || playState.kind === "idle" ? "text-emerald-300 border border-emerald-500/30" : playState.kind === "loading" ? "text-amber-300 border border-amber-500/30" : "text-rating-low border border-rating-low/30"}`}
+          className={`inline-flex shrink-0 items-center gap-1.5 self-start rounded-lg bg-surface px-3 py-1.5 text-[11px] font-medium backdrop-blur-sm sm:self-auto ${playState.kind === "playing" || playState.kind === "idle" ? "text-emerald-300 ring-1 ring-emerald-500/30" : playState.kind === "loading" ? "text-amber-300 ring-1 ring-amber-500/30" : "text-rating-low ring-1 ring-rating-low/30"}`}
         >
           {playState.kind === "playing" || playState.kind === "idle" ? (
             <span className="inline-flex items-center gap-1">
