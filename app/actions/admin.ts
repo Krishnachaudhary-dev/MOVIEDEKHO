@@ -1,7 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getSupabaseClient } from '@/lib/supabase';
+
+import { isAdminAuthenticated } from '@/app/actions/auth';
+import { describeSupabaseError, getSupabaseClient } from '@/lib/supabase';
 
 export interface AddMovieStreamResult {
   ok: boolean;
@@ -19,7 +21,6 @@ function parsePositiveInteger(value: FormDataEntryValue | null | undefined, fiel
   if (typeof value === 'object') {
     throw new Error(`${fieldName} must be a number, not a file.`);
   }
-  const s = String(value);
   const n = Number(value);
   if (!Number.isInteger(n) || n <= 0) {
     throw new Error(`${fieldName} must be a positive integer.`);
@@ -32,7 +33,17 @@ export async function addMovieStream(
   formData: FormData,
 ): Promise<AddMovieStreamResult> {
   try {
-      const tmdbId = parsePositiveInteger(formData.get('tmdbId'), 'TMDB ID');
+    // The page shell is gated already, but a server action is a public POST
+    // endpoint: verify the session here too so an unlocked browser is not the
+    // only thing standing between the internet and an insert.
+    if (!(await isAdminAuthenticated())) {
+      return {
+        ok: false,
+        error: 'Your admin session has expired. Unlock /admin again and retry.',
+      };
+    }
+
+    const tmdbId = parsePositiveInteger(formData.get('tmdbId'), 'TMDB ID');
     const title = String(formData.get('title') ?? '').trim();
     const serverName = String(formData.get('serverName') ?? '').trim();
     const url = String(formData.get('url') ?? '').trim();
@@ -62,7 +73,13 @@ export async function addMovieStream(
 
     if (existingError && existingError.code !== 'PGRST116') {
       console.error('addMovieStream: movie lookup failed', existingError);
-      return { ok: false, error: 'Failed to check existing movie record.' };
+      return {
+        ok: false,
+        error: describeSupabaseError(
+          'Failed to look up the movie record',
+          existingError,
+        ),
+      };
     }
 
     let movieId: string;
@@ -76,8 +93,16 @@ export async function addMovieStream(
         .single();
 
       if (insertError) {
+        // Report the provider's own message (missing table, RLS denial, bad
+        // key, …) instead of a generic string — this is what the admin sees.
         console.error('addMovieStream: movie insert failed', insertError);
-        return { ok: false, error: 'Failed to create movie record.' };
+        return {
+          ok: false,
+          error: describeSupabaseError(
+            'Failed to create movie record',
+            insertError,
+          ),
+        };
       }
       if (!inserted?.id) {
         return { ok: false, error: 'Movie record was not created.' };
@@ -95,7 +120,10 @@ export async function addMovieStream(
 
     if (sourcesError) {
       console.error('addMovieStream: source insert failed', sourcesError);
-      return { ok: false, error: 'Failed to save stream source.' };
+      return {
+        ok: false,
+        error: describeSupabaseError('Failed to save stream source', sourcesError),
+      };
     }
 
     revalidatePath('/admin');

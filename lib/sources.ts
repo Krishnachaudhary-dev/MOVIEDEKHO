@@ -7,6 +7,7 @@ import type {
   StreamsResponse,
 } from '@/lib/types/sources';
 import { getStreamsFromSupabase } from './supabase-queries';
+import { hasSupabaseConfig } from './supabase';
 
 /** Typed view of the JSON seed (JSON modules widen literals to string). */
 interface SeedSource {
@@ -151,10 +152,6 @@ export async function getMovieSources(
   const key = streamKey(tmdbId, mediaType);
   const record = byKey.get(key) ?? buildFallback(tmdbId);
   return { record, fallback: !byKey.has(key) };
-}
-
-function hasSupabaseConfig(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
 /** All curated records — used by admin/debug surfaces later. */

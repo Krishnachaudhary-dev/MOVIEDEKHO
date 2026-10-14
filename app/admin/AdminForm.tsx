@@ -8,7 +8,7 @@
 
 import { useActionState } from 'react';
 import Link from 'next/link';
-import { CheckCircle, XCircle, Film, Unlock } from 'lucide-react';
+import { CheckCircle, XCircle, Unlock } from 'lucide-react';
 
 import { addMovieStream, type AddMovieStreamResult } from '@/app/actions/admin';
 import { lockAdmin } from '@/app/actions/auth';
@@ -186,10 +186,18 @@ export default function AdminForm() {
                 <XCircle className="mt-0.5 size-5 text-rating-low" />
                 <div>
                   <p className="font-semibold">Could not save the stream source.</p>
-                  <p className="mt-1 text-foreground/80">{state.error}</p>
-                  <p className="mt-1 text-foreground/70 text-xs">
-                    Supabase env vars must be configured for the admin tool to work.
-                  </p>
+                  {/* The detail is the provider's own message (missing table,
+                      RLS denial, rejected key, …). The configuration note is
+                      only appended when the failure really is a
+                      missing-configuration one — it used to print
+                      unconditionally and mask everything else. */}
+                  <p className="mt-1 break-words text-foreground/80">{state.error}</p>
+                  {/supabase is not configured/i.test(state.error ?? '') ? (
+                    <p className="mt-1 text-foreground/70 text-xs">
+                      Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in the
+                      deployment environment, then redeploy.
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </div>
